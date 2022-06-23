@@ -26,8 +26,8 @@ from ninja_syntax import Variable, BuildAction, Rule, Pool, Subninja, Line
 class Ninja(ninja_writer.Writer):
     """Some higher level constructs on top of raw ninja writing.
     TODO: Not sure where these should be."""
-    def __init__(self, context, file):
-        super(Ninja, self).__init__(file)
+    def __init__(self, context, file, **kwargs):
+        super(Ninja, self).__init__(file, builddir=context.out.root(base=context.out.Base.OUTER), **kwargs)
         self._context = context
         self._did_copy_file = False
         self._phonies = {}
