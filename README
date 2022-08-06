@@ -1,8 +1,13 @@
 DEMO
 
+===========================================================================
+NOTE: This document is likely out of date, pending the outer manifest being
+updated to have the orchestrator in its own sub manifest.
+===========================================================================
+
 from the root of the workspace
 
-multitree_lunch build/build/make/orchestrator/test_workspace/combo.mcombo eng
+multitree_lunch orchestrator/build/orchestrator/test_workspace/combo.mcombo eng
 
 rm -rf out && multitree_build && echo "==== Files ====" && find out -type f
 
