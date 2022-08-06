@@ -1,0 +1,16 @@
+{
+    "lunchable": true,
+    "system": {
+        "inner-tree": "aosp-master-with-phones",
+        "product": "aosp_cf_arm64_phone"
+    },
+    "vendor": {
+        "inner-tree": "aosp-master-with-phones",
+        "product": "aosp_cf_arm64_phone"
+    },
+    "modules": {
+        "com.android.bionic": {
+            "inner-tree": "aosp-master-with-phones"
+        }
+    }
+}
