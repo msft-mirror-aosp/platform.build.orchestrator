@@ -70,7 +70,7 @@ def process_config(context, lunch_config):
     return inner_tree.InnerTrees(trees, domains)
 
 
-def build():
+def build(args):
     # Choose the out directory, set up error handling, etc.
     context = utils.Context(utils.choose_out_dir(), utils.Errors(sys.stderr))
 
@@ -139,14 +139,14 @@ def build():
       config.add_nsjail(tree.meld_config)
     print("Running ninja...")
     # TODO: determine the targets from the lunch command and mcombo files.
-    targets = ["staging", "system/system"]
+    targets = args or ["staging", "system/system"]
     ninja_runner.run_ninja(context, config, targets)
 
     # Success!
     return EXIT_STATUS_OK
 
 def main(argv):
-    return build()
+    return build(sys.argv[1:])
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
