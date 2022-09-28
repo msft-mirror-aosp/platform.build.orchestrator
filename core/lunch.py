@@ -266,7 +266,7 @@ TARGET_BUILD_VARIANT=%(TARGET_BUILD_VARIANT)s
 def do_lunch(args):
     """Handle the lunch command."""
     # Check that we're at the top of a multitree workspace by seeing if this script exists.
-    if not os.path.exists("build/build/make/orchestrator/core/lunch.py"):
+    if not os.path.exists("orchestrator/build/orchestrator/core/lunch.py"):
         sys.stderr.write("ERROR: lunch.py must be run from the root of a multi-tree workspace\n")
         return EXIT_STATUS_ERROR
 
