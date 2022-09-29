@@ -120,7 +120,7 @@ class HostTools(object):
             raise Exception("Orchestrator running on an unknown system: %s" % platform.system())
 
         # Some of these are called a lot, so pre-compute the strings to save memory
-        self._prebuilts = os.path.join("build", "prebuilts", "build-tools", self._arch, "bin")
+        self._prebuilts = os.path.join("orchestrator", "prebuilts", "build-tools", self._arch, "bin")
         self._acp = os.path.join(self._prebuilts, "acp")
         self._ninja = os.path.join(self._prebuilts, "ninja")
 
