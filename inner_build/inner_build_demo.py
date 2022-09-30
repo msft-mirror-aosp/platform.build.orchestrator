@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import sys
 import textwrap
@@ -22,22 +23,22 @@ sys.dont_write_bytecode = True
 import common
 
 def mkdirs(path):
-    try:
-        os.makedirs(path)
-    except FileExistsError:
-        pass
+    os.makedirs(path, exist_ok=True)
 
 
 class InnerBuildSoong(common.Commands):
     def describe(self, args):
         mkdirs(args.out_dir)
 
-        with open(os.path.join(args.out_dir, "tree_info.json"), "w") as f:
-            f.write(textwrap.dedent("""\
-            {
-                "requires_ninja": true,
-                "orchestrator_protocol_version": 1
-            }"""))
+        with open(args.input_json) as f:
+            query = json.load(f)
+
+        domain_data = [dict(domains=[query.get("build_domains", [])])]
+        reply = dict(version=0, domain_data=domain_data)
+
+        filename = args.output_json or os.path.join(args.out_dir, "tree_info.json")
+        with open(filename, "w") as f:
+            json.dump(reply, f, indent=4)
 
     def export_api_contributions(self, args):
         contributions_dir = os.path.join(args.out_dir, "api_contributions")
@@ -56,14 +57,14 @@ class InnerBuildSoong(common.Commands):
                             "name": "libhello1",
                             "headers": [
                                 {
-                                    "root": "build/build/make/orchestrator/test_workspace/inner_tree_1",
+                                    "root": "build/orchestrator/test_workspace/inner_tree_1",
                                     "files": [
                                         "hello1.h"
                                     ]
                                 }
                             ],
                             "api": [
-                                "build/build/make/orchestrator/test_workspace/inner_tree_1/libhello1"
+                                "build/orchestrator/test_workspace/inner_tree_1/libhello1"
                             ]
                         }
                     ]
@@ -81,9 +82,9 @@ class InnerBuildSoong(common.Commands):
                         command = mkdir -p ${out_dir} && g++ -c ${cflags} -o ${out} ${in}
                     rule link_so
                         command = mkdir -p ${out_dir} && gcc -shared -o ${out} ${in}
-                    build %(OUT_DIR)s/libhello1/hello1.o: compile_c build/build/make/orchestrator/test_workspace/inner_tree_1/libhello1/hello1.c
+                    build %(OUT_DIR)s/libhello1/hello1.o: compile_c build/orchestrator/test_workspace/inner_tree_1/libhello1/hello1.c
                         out_dir = %(OUT_DIR)s/libhello1
-                        cflags = -Ibuild/build/make/orchestrator/test_workspace/inner_tree_1/libhello1/include
+                        cflags = -Ibuild/orchestrator/test_workspace/inner_tree_1/libhello1/include
                     build %(OUT_DIR)s/libhello1/libhello1.so: link_so %(OUT_DIR)s/libhello1/hello1.o
                         out_dir = %(OUT_DIR)s/libhello1
                     build system: phony %(OUT_DIR)s/libhello1/libhello1.so
