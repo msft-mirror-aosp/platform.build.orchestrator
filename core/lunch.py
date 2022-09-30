@@ -78,7 +78,7 @@ def find_file(path, filename):
 # TODO: When orchestrator is in its own git project remove the "build" and "make" here
 class LunchContext(object):
     """Mockable container for lunch"""
-    def __init__(self, workspace_root, orchestrator_path_prefix_components=["build", "build", "make"]):
+    def __init__(self, workspace_root, orchestrator_path_prefix_components=["orchestrator", "build"]):
       self.workspace_root = workspace_root
       self.orchestrator_path_prefix_components = orchestrator_path_prefix_components
 
