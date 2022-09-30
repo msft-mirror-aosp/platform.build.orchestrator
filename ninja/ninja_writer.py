@@ -21,9 +21,11 @@ from ninja_syntax import Variable, BuildAction, Rule, Pool, Subninja, Line
 # require horizontal scrolling
 class Writer:
 
-  def __init__(self, file):
+  def __init__(self, file, builddir: str=None):
     self.file = file
     self.nodes = [] # type Node
+    if builddir:
+        self.add_variable(Variable('builddir', builddir))
 
   def add_variable(self, variable: Variable):
     self.nodes.append(variable)

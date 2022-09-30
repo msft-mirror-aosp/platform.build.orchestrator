@@ -18,9 +18,9 @@ import os
 
 def assemble_cc_api_library(context, ninja, build_file, stub_library):
     staging_dir = context.out.api_library_dir(stub_library.api_surface,
-            stub_library.api_surface_version, stub_library.name)
+            stub_library.api_surface_version, stub_library.name, base=context.out.Base.OUTER)
     work_dir = context.out.api_library_work_dir(stub_library.api_surface,
-            stub_library.api_surface_version, stub_library.name)
+            stub_library.api_surface_version, stub_library.name, base=context.out.Base.OUTER)
 
     # Generate rules to copy headers
     includes = []
