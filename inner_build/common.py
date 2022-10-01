@@ -35,6 +35,10 @@ def _parse_arguments(argv):
     # inner_build describe command
     describe_parser = subparsers.add_parser("describe",
             help="describe the capabilities of this inner tree's build system")
+    describe_parser.add_argument('--input-json', '--input_json', required=True,
+                                 help="The json encoded request information")
+    describe_parser.add_argument('--output-json', '--output_json', required=True,
+                                 help="The json encoded description.")
 
     # create the parser for the "b" command
     export_parser = subparsers.add_parser("export_api_contributions",

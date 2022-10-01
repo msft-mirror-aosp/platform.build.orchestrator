@@ -16,12 +16,18 @@
 import subprocess
 import sys
 
-def run_ninja(context, targets):
+def run_ninja(context, config, targets):
     """Run ninja.
     """
 
+    nsjail = context.tools.nsjail
+    # Write the nsjail config
+    nsjail_config_file = context.out.nsjail_config_file()
+    config.generate_config(nsjail_config_file)
+
     # Construct the command
     cmd = [
+            nsjail, "--config", nsjail_config_file, "--",
             context.tools.ninja(),
             "-f",
             context.out.outer_ninja_file(),
