@@ -15,6 +15,9 @@
 # limitations under the License.
 
 import os
+import textwrap
+
+ASSEMBLE_PHONY_TARGET = "multitree-sdk"
 
 def assemble_cc_api_library(context, ninja, build_file, stub_library):
     staging_dir = context.out.api_library_dir(stub_library.api_surface,
@@ -23,26 +26,33 @@ def assemble_cc_api_library(context, ninja, build_file, stub_library):
             stub_library.api_surface_version, stub_library.name, base=context.out.Base.OUTER)
 
     # Generate rules to copy headers
-    includes = []
-    include_dir = os.path.join(staging_dir, "include")
+    api_deps = []
     for contrib in stub_library.contributions:
         for headers in contrib.library_contribution["headers"]:
+            # Each header module gets its own include dir
+            # TODO: Improve the readability of the generated out/ directory
+            include_dir = os.path.join(staging_dir, headers["name"])
             root = headers["root"]
-            for file in headers["files"]:
+            for file in headers["headers"]:
                 # TODO: Deal with collisions of the same name from multiple contributions
-                include = os.path.join(include_dir, file)
-                ninja.add_copy_file(include, os.path.join(contrib.inner_tree.root, root, file))
-                includes.append(include)
+                # Remove the root from the full filepath
+                # e.g. bionic/libc/include/stdio.h --> stdio.h
+                relpath = os.path.relpath(file, root)
+                include = os.path.join(include_dir, relpath)
+                ninja.add_copy_file(include, os.path.join(contrib.inner_tree.root, file))
+                api_deps.append(include)
 
-    # Generate rule to run ndkstubgen
+        api = contrib.library_contribution["api"]
+        api_out = os.path.join(staging_dir, os.path.basename(api))
+        ninja.add_copy_file(api_out, os.path.join(contrib.inner_tree.root, api))
+        api_deps.append(api_out)
 
-
-    # Generate rule to compile stubs to library
+        # TODO: Generate Android.bp files
 
     # Generate phony rule to build the library
     # TODO: This name probably conflictgs with something
-    ninja.add_phony("-".join((stub_library.api_surface, str(stub_library.api_surface_version),
-            stub_library.name)), includes)
-
-    # Generate build files
-
+    phony = "-".join([stub_library.api_surface, str(stub_library.api_surface_version),
+                      stub_library.name])
+    ninja.add_phony(phony, api_deps)
+    # Add a global phony to assemnble all apis
+    ninja.add_global_phony(ASSEMBLE_PHONY_TARGET, [phony])

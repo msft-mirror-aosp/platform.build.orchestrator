@@ -32,8 +32,10 @@ API_PACKAGES_FILENAME = "api_packages.json"
 DEFAULT_API_TARGET = "contributions"
 # Directories inside inner_tree that will be searched for api_packages.json
 # This pruning improves the speed of the API export process
-INNER_TREE_SEARCH_DIRS = [("frameworks", "base"),
-                          ("packages", "modules")]
+INNER_TREE_SEARCH_DIRS = [
+("build", "orchestrator"), # TODO: Update after system's contributions are moved to a different git project
+("frameworks", "base"),
+("packages", "modules")]
 
 class BazelLabel:
     """Class to represent a Fully qualified API contribution Bazel target
