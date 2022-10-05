@@ -16,12 +16,9 @@
 
 import os
 import shutil
-import sys
 import tempfile
-import textwrap
 import unittest
 
-sys.dont_write_bytecode = True
 import nsjail
 
 
@@ -65,7 +62,7 @@ class TestNsjail(unittest.TestCase):
     def test_WriteConfig(self):
         self.cfg.generate_config(fn=self.cfg_name)
         self.assertTrue(os.path.exists(self.cfg_name))
-        with open(self.cfg_name) as f:
+        with open(self.cfg_name, encoding="iso-8859-1") as f:
             config = f.read()
         self.assertEqual(self.config, config)
 
