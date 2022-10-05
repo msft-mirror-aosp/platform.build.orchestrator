@@ -131,7 +131,7 @@ class Nsjail(object):
                     fstype="tmpfs",
                     rw=True,
                     is_bind=False,
-                    noexec=True,
+                    noexec=False,
                     nodev=True,
                     nosuid=True),
 

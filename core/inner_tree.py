@@ -226,6 +226,8 @@ class InnerTree(object):
         for domain_name in sorted(self.domains.keys()):
             cmd.append("--api_domain")
             cmd.append(domain_name)
+        # full path of the inner_tree (including multitree_root)
+        cmd.extend(["--inner_tree", os.path.join(os.getcwd(), self.root)])
         cmd += args
 
         # Run the command
