@@ -29,12 +29,19 @@ def _parse_arguments(argv):
     parser.add_argument("--api_domain", action="append", required=True,
             help="which API domains are to be built in this inner tree")
 
+    parser.add_argument("--inner_tree", action="store", required=True,
+            help="root of the inner tree that is building the API domain")
+
     subparsers = parser.add_subparsers(required=True, dest="command",
             help="subcommands")
 
     # inner_build describe command
     describe_parser = subparsers.add_parser("describe",
             help="describe the capabilities of this inner tree's build system")
+    describe_parser.add_argument('--input-json', '--input_json', required=True,
+                                 help="The json encoded request information")
+    describe_parser.add_argument('--output-json', '--output_json', required=True,
+                                 help="The json encoded description.")
 
     # create the parser for the "b" command
     export_parser = subparsers.add_parser("export_api_contributions",

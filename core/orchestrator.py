@@ -28,6 +28,7 @@ import tree_analysis
 import interrogate
 import lunch
 import ninja_runner
+import nsjail
 import utils
 
 EXIT_STATUS_OK = 0
@@ -63,13 +64,13 @@ def process_config(context, lunch_config):
         add(API_DOMAIN_VENDOR, vendor_entry["inner-tree"],
             vendor_entry["product"])
 
-    for module_name, module_entry in lunch_config.get("modules", []).items():
+    for module_name, module_entry in lunch_config.get("modules", {}).items():
         add(module_name, module_entry["inner-tree"], None)
 
     return inner_tree.InnerTrees(trees, domains)
 
 
-def build():
+def build(args):
     # Choose the out directory, set up error handling, etc.
     context = utils.Context(utils.choose_out_dir(), utils.Errors(sys.stderr))
 
@@ -85,8 +86,12 @@ def build():
     inner_trees = process_config(context, config)
 
     # 1. Interrogate the trees
-    inner_trees.for_each_tree(interrogate.interrogate_tree)
-    # TODO: Detect bazel-only mode
+    description = inner_trees.for_each_tree(interrogate.interrogate_tree)
+    # TODO: Do something when bazel_only is True.  Provided now as an example in
+    # passing for querying the interrogation results.
+    bazel_only = (
+        len(inner_trees.keys()) == 1 and
+        description.values[0].get("single_bazel_optimization_available"))
 
     # 2a. API Export
     inner_trees.for_each_tree(api_export.export_apis_from_tree)
@@ -104,15 +109,44 @@ def build():
     # TODO: Decide what we want the UX for selecting targets to be across
     # branches... since there are very likely to be conflicting soong short
     # names.
+
+    # The filesystem layout for the nsjail has binaries, libraries, and such
+    # where we expect them to be.  Outside of that, we mount the workspace
+    # (which is presumably the current working directory thanks to lunch), and
+    # those are the only files present in the tree.
+    #
+    # The orchestrator needs to have the outer tree as the top of the tree, with
+    # all of the inner tree nsjail configs merged with it, so that we can do one
+    # ninja run this step.  The source workspace is mounted read-only, with the
+    # out_dir mounted read-write.
+    config = nsjail.Nsjail(os.path.abspath("."))
+    config.add_mountpt(src=os.path.abspath("."),
+                       dst=os.path.abspath("."),
+                       is_bind=True,
+                       rw=False,
+                       mandatory=True)
+    # Add the outer-tree outdir (which may be unrelated to the workspace root).
+    # The inner-trees will additionally mount their outdir under as
+    # {inner_tree}/out, so that all access to the out_dir in a subninja stays
+    # within the inner-tree's workspace.
+    config.add_mountpt(src=context.out.root(abspath=True),
+                       dst=context.out.root(base=context.out.Base.OUTER, abspath=True),
+                       is_bind=True,
+                       rw=True,
+                       mandatory=True)
+
+    for tree in inner_trees.trees.values():
+      config.add_nsjail(tree.meld_config)
     print("Running ninja...")
-    targets = ["staging", "system"]
-    ninja_runner.run_ninja(context, targets)
+    # TODO: determine the targets from the lunch command and mcombo files.
+    targets = args or ["staging", "system/system"]
+    ninja_runner.run_ninja(context, config, targets)
 
     # Success!
     return EXIT_STATUS_OK
 
 def main(argv):
-    return build()
+    return build(sys.argv[1:])
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

@@ -160,7 +160,10 @@ class Subninja(Node):
 
   # TODO(spandandas): Update the syntax when aosp/2064612 lands
   def stream(self) -> Iterator[str]:
-    yield f"subninja {self.subninja}"
+    token = f"subninja {self.subninja}"
+    if self.chDir:
+      token += f"\n  chdir = {self.chDir}"
+    yield token
 
 class Line(Node):
   '''Generic class that can be used for comments/newlines/default_target etc'''

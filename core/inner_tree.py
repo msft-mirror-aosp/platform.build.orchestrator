@@ -14,11 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
+import enum
 import json
 import os
 import subprocess
 import sys
 import textwrap
+
+import nsjail
+import utils
+
+_INNER_BUILD = ".inner_build"
 
 
 class InnerTreeKey(object):
@@ -43,7 +50,7 @@ class InnerTreeKey(object):
                 f"product={enquote(self.product)}")
 
     def __hash__(self):
-        return hash((self.root, self.product))
+        return hash((self.root, str(self.melds), self.product))
 
     def _cmp(self, other):
         assert isinstance(other, InnerTreeKey)
@@ -91,15 +98,18 @@ class InnerTree(object):
             paths = [paths]
         self.root = paths[0]
         self.meld_dirs = paths[1:]
+        # TODO: more complete checking (include '../' in the checks, etc.
+        if any(x.startswith(os.path.sep) for x in self.meld_dirs):
+            raise(Exception(f"meld directories may not start with {os.path.sep}"))
+        if any(x.startswith('=') for x in self.meld_dirs[1:]):
+            raise(Execption(f'only the first meld directory can specify "="'))
+
         self.product = product
         self.domains = {}
-        # TODO: Base directory on OUT_DIR
-        out_root = context.out.inner_tree_dir(self.root)
-        if product:
-            out_root += "_" + product
-        else:
-            out_root += "_unbundled"
-        self.out = OutDirLayout(out_root)
+        self.nsjail = context.tools.nsjail
+        self.out_root_origin = context.out.inner_tree_dir(self.root, product)
+        self.out = OutDirLayout(self.root, self.out_root_origin)
+        self._meld_config = None
 
     def __str__(self):
         return (f"InnerTree(root={enquote(self.root)} "
@@ -107,36 +117,128 @@ class InnerTree(object):
                 f"domains={enquote(list(self.domains.keys()))} "
                 f"meld={enquote(self.meld_dirs)})")
 
+    @property
+    def meld_config(self):
+        """Return the meld configuration for invoking inner_build."""
+        if self._meld_config:
+            return self._meld_config
+
+        inner_tree_src_path = os.path.abspath(self.root)
+        config = nsjail.Nsjail(inner_tree_src_path)
+        inner_tree_out_path = self.out.root(base=self.out.Base.OUTER, abspath=True)
+        out_root_origin = self.out.root()
+
+        # If the first meld dir path starts with "=", overlay the entire tree
+        # with that before melding other sub manifests.
+        meld_dirs = self.meld_dirs
+        tree_root = inner_tree_src_path
+        if meld_dirs and meld_dirs[0].startswith('='):
+            tree_root = os.path.abspath(meld_dirs[0][1:])
+            meld_dirs = meld_dirs[1:]
+            sys.stderr.write(f'overlaying {self.root} with {tree_root}\n')
+
+        config.add_mountpt(src=tree_root,
+                           dst=inner_tree_src_path,
+                           is_bind=True,
+                           rw=False,
+                           mandatory=True)
+        # Place OUTDIR at /out
+        os.makedirs(out_root_origin, exist_ok=True)
+        config.add_mountpt(src=os.path.abspath(out_root_origin),
+                           dst=inner_tree_out_path,
+                           is_bind=True,
+                           rw=True,
+                           mandatory=True)
+
+        def _meld_git(shared, src):
+            dst = os.path.join(self.root, src[len(shared) + 1:])
+            abs_dst = os.path.join(inner_tree_src_path, src[len(shared) + 1:])
+            abs_src = os.path.abspath(src)
+            # Only meld if we have not already mounted something at {dst}, and
+            # either the project is missing, or is an empty directory:  nsjail
+            # creates empty directories when it mounts the directory.
+            if abs_dst in config.mount_points:
+                sys.stderr.write(f'{dst} already mounted, ignoring {src}\n')
+            elif not os.path.isdir(dst) or not os.listdir(dst):
+                # TODO: For repo workspaces, we need to handle <linkfile/> and
+                # <copyfile/> elements from the manifest.
+                sys.stderr.write(f'melding {src} into {dst}\n')
+                config.add_mountpt(src=abs_src,
+                                   dst=abs_dst,
+                                   is_bind=True,
+                                   rw=False,
+                                   mandatory=True)
+
+        for shared in meld_dirs:
+            if os.path.isdir(os.path.join(shared, '.git')):
+                # TODO: If this is the root of the meld_dir, process the
+                # modules instead of the git project.
+                print(f'TODO: handle git submodules case')
+                continue
+
+            # Use os.walk (which uses os.scandir), so that we get recursion
+            # for free.
+            for src, dirs, _ in os.walk(shared):
+                # When repo syncs the workspace, .git is a symlink.
+                if '.git' in dirs or os.path.isdir(os.path.join(src, '.git')):
+                    _meld_git(shared, src)
+                    # Stop recursing.
+                    dirs[:] = []
+                # TODO: determine what other source control systems we need
+                # to detect and support here.
+
+        self._meld_config = config
+        return self._meld_config
+
+    @property
+    def build_domains(self):
+        """The build_domains for this inner-tree."""
+        return sorted(self.domains.keys())
+
     def invoke(self, args):
         """Call the inner tree command for this inner tree. Exits on failure."""
         # TODO: Build time tracing
 
         # Validate that there is a .inner_build command to run at the root of the tree
         # so we can print a good error message
-        inner_build_tool = os.path.join(self.root, ".inner_build")
-        if not os.access(inner_build_tool, os.X_OK):
-            sys.stderr.write(
-                f"Unable to execute {inner_build_tool}. Is there an inner tree "
-                "or lunch combo misconfiguration?\n")
-            sys.exit(1)
+        # If we are melding the inner_build into the tree, it won't be
+        # executable at this time.
+        #inner_build_tool = os.path.join(self.root, _INNER_BUILD)
+        #if not os.path.exists(inner_build_tool):
+        #    sys.stderr.write(
+        #        f"Unable to execute {inner_build_tool}. Is there an inner tree "
+        #        f"or lunch combo misconfiguration?\n")
+        #    sys.exit(1)
 
-        # TODO: This is where we should set up the shared trees
+        meld_config = self.meld_config
+        inner_tree_src_path = meld_config.cwd
+
+        # Write the nsjail config
+        nsjail_config_file = self.out.nsjail_config_file()
+        meld_config.generate_config(nsjail_config_file)
 
         # Build the command
-        cmd = [inner_build_tool, "--out_dir", self.out.root()]
+        cmd = [
+            self.nsjail, "--config", nsjail_config_file, "--",
+            os.path.join(inner_tree_src_path, _INNER_BUILD), "--out_dir",
+            self.out.root(base=self.out.Base.INNER),
+        ]
         for domain_name in sorted(self.domains.keys()):
             cmd.append("--api_domain")
             cmd.append(domain_name)
+        # full path of the inner_tree (including multitree_root)
+        cmd.extend(["--inner_tree", os.path.join(os.getcwd(), self.root)])
         cmd += args
 
         # Run the command
+        print("% " + " ".join(cmd))
         process = subprocess.run(cmd, shell=False)
 
         # TODO: Probably want better handling of inner tree failures
         if process.returncode:
             sys.stderr.write(
                 f"Build error in inner tree: {self.root}\nstopping "
-                "multitree build.\n")
+                f"multitree build.\n")
             sys.exit(1)
 
 
@@ -153,24 +255,28 @@ class InnerTrees(object):
 
         return textwrap.dedent(f"""\
         InnerTrees {{
-            trees: [
-                {_vals(self.trees.values())}
+            inner-tree: [
+                {self.trees.values()[0]}
+                {_vals(self.trees.values()[1:])}
             ]
             domains: [
                 {_vals(self.domains.values())}
             ]
         }}""")
 
+    def __iter__(self):
+        """Return a generator yielding the sorted inner tree keys."""
+        for key in sorted(self.trees.keys()):
+            yield key
+
     def for_each_tree(self, func, cookie=None):
         """Call func for each of the inner trees once for each product that will be built in it.
 
         The calls will be in a stable order.
 
-        Return a map of the InnerTreeKey to any results returned from func().
+        Return a map of the InnerTreeKey to the return value from func().
         """
-        result = {}
-        for key in sorted(self.trees.keys()):
-            result[key] = func(key, self.trees[key], cookie)
+        result = {x: func(x, self.trees[x], cookie) for x in self}
         return result
 
     def get(self, tree_key):
@@ -182,28 +288,82 @@ class InnerTrees(object):
         return [self.trees[k] for k in sorted(self.trees.keys())]
 
 
+@enum.unique
+class OutDirBase(enum.Enum):
+    """The basepath to use for output paths.
+
+    ORIGIN: Path is relative to ${OUT_DIR}. Use this when the path will be
+            consumed while not nsjailed. (default)
+    OUTER:  Path is relative to the outer tree root.  Use this when the path
+            will be consumed while nsjailed in the outer tree.
+    INNER:  Path is relative to the inner tree root.  Use this when the path
+            will be consumed while nsjailed in the inner tree.
+    """
+    DEFAULT = 0
+    ORIGIN = 1
+    OUTER = 2
+    INNER = 3
+
+
 class OutDirLayout(object):
     """Encapsulates the logic about the layout of the inner tree out directories.
     See also context.OutDir for outer tree out dir contents."""
 
-    def __init__(self, root):
-        "Initialize with the root of the OUT_DIR for the inner tree."
-        self._root = root
+    # For ease of use.
+    Base = OutDirBase
 
-    def root(self):
-        return self._root
+    def __init__(self, tree_root, out_origin, out_path="out"):
+        """Initialize with the root of the OUT_DIR for the inner tree.
 
-    def tree_info_file(self):
-        return os.path.join(self._root, "tree_info.json")
+        Args:
+          tree_root: The workspace-relative path of the inner_tree.
+          out_origin: The OUT_DIR path for the inner tree.
+                      Usually "${OUT_DIR}/trees/{tree_root}_{product}"
+          out_path: Where the inner tree out_dir will be mapped, relative to the
+                    inner tree root. Usually "out".
+        """
+        self._base = {}
+        self._base[self.Base.ORIGIN] = out_origin
+        self._base[self.Base.OUTER] = os.path.join(tree_root, out_path)
+        self._base[self.Base.INNER] = out_path
+        self._base[self.Base.DEFAULT] = self._base[self.Base.ORIGIN]
 
-    def api_contributions_dir(self):
-        return os.path.join(self._root, "api_contributions")
+    def _generate_path(self, relpath,
+                       base: OutDirBase = OutDirBase.DEFAULT,
+                       abspath=False):
+        """Return the path to the file.
 
-    def build_targets_file(self):
-        return os.path.join(self._root, "build_targets.json")
+        Args:
+          relpath: The inner tree out_dir relative path to use.
+          base: Which base path to use.
+          abspath: return the absolute path.
+        """
+        ret = os.path.join(self._base[base], relpath)
+        if abspath:
+            ret = os.path.abspath(ret)
+        return ret
 
-    def main_ninja_file(self):
-        return os.path.join(self._root, "inner_tree.ninja")
+    def root(self, **kwargs):
+        return self._generate_path("", **kwargs)
+
+    def api_contributions_dir(self, **kwargs):
+        return self._generate_path("api_contributions", **kwargs)
+
+    def build_targets_file(self, **kwargs):
+        return self._generate_path("build_targets.json", **kwargs)
+
+    def main_ninja_file(self, **kwargs):
+        return self._generate_path("inner_tree.ninja", **kwargs)
+
+    def nsjail_config_file(self, **kwargs):
+        return self._generate_path("nsjail.cfg", **kwargs)
+
+    def tree_info_file(self, **kwargs):
+        return self._generate_path("tree_info.json", **kwargs)
+
+    def tree_query(self, **kwargs):
+        return self._generate_path("tree_query.json", **kwargs)
+
 
 
 def enquote(s):

@@ -1,0 +1,5 @@
+{
+	"api_domain": "system",
+	"api_package": "//build/orchestrator/apis",
+	"api_target": "system"
+}
