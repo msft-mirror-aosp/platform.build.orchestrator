@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import json
 import os
-import subprocess
-import sys
 import textwrap
 
 
@@ -26,14 +23,13 @@ def _bool(value):
     """Convert string to one of None, True, False."""
     if isinstance(value, bool):
         return value
-    elif value is None:
+    if value is None:
         return None
-    elif value.to_lower() in ('', 'none', 'null'):
+    if value.to_lower() in ('', 'none', 'null'):
         return None
-    elif value in ('False', 'false'):
+    if value in ('False', 'false'):
         return False
-    else:
-        return bool(value)
+    return bool(value)
 
 
 class MountPt(object):
@@ -135,7 +131,7 @@ class Nsjail(object):
                     fstype="tmpfs",
                     rw=True,
                     is_bind=False,
-                    noexec=True,
+                    noexec=False,
                     nodev=True,
                     nosuid=True),
 
@@ -215,21 +211,21 @@ class Nsjail(object):
 
     @property
     def mount_points(self):
-      """Return the list of mount points.
+        """Return the list of mount points.
 
       Returns a list of mount points (destinations) for the nsjail.
       """
-      return (x.dst for x in self.mounts)
+        return (x.dst for x in self.mounts)
 
     def add_nsjail(self, other):
         """Add another Nsjail object to this one."""
         assert other.cwd.startswith(self.cwd), "Must be a subdir"
         our_mounts = {x.dst: x for x in self.mounts}
         for mount in other.mounts:
-          if mount.dst not in our_mounts:
-            self.mounts.append(mount)
-          else:
-            assert mount == our_mounts[mount.dst]
+            if mount.dst not in our_mounts:
+                self.mounts.append(mount)
+            else:
+                assert mount == our_mounts[mount.dst]
 
     def generate_config(self, fn):
         """Generate the nsjail config file.
@@ -312,6 +308,6 @@ class Nsjail(object):
             data += f'{mount}'
         if fn:
             os.makedirs(os.path.dirname(fn), exist_ok=True)
-            with open(fn, "w") as f:
+            with open(fn, "w", encoding="iso-8859-1") as f:
                 f.write(data)
         return data
