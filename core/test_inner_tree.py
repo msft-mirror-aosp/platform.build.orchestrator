@@ -21,7 +21,6 @@ import tempfile
 import textwrap
 import unittest
 
-sys.dont_write_bytecode = True
 import inner_tree
 import utils
 
