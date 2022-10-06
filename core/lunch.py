@@ -186,7 +186,7 @@ def load_config(filename):
         ConfigException on errors
     """
     def load_and_merge(fn, visited):
-        with open(fn) as f:
+        with open(fn, encoding='iso-8859-1') as f:
             try:
                 contents = json.load(f)
             except json.decoder.JSONDecodeError as ex:
