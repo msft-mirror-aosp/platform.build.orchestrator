@@ -18,7 +18,6 @@ import os
 import subprocess
 import sys
 
-sys.dont_write_bytecode = True
 import api_assembly
 import api_domain
 import api_export
