@@ -18,7 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Tuple
 
 import common
 from find_api_packages import ApiPackageFinder
@@ -175,7 +175,7 @@ class ApiExporterBazel(object):
     def _run_bazel_cmd(self,
                        subcmd: str,
                        targets: List[str],
-                       subcmd_options=[],
+                       subcmd_options: Tuple[str] =(),
                        **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
@@ -191,6 +191,7 @@ class ApiExporterBazel(object):
             "--config=android",
             f"--symlink_prefix={output_user_root}", # Use prefix hack to create the convenience symlinks in out/
         ]
+        subcmd_options = list(subcmd_options)
         cmd += subcmd_options + targets
         return self._run_cmd(cmd, **kwargs)
 
