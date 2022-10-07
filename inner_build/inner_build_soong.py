@@ -37,12 +37,22 @@ class InnerBuildSoong(common.Commands):
 class ApiMetadataFile(object):
     """Utility class that wraps the generated API surface metadata files"""
 
-    def __init__(self, inner_tree: str, path: str):
+    def __init__(self, inner_tree: str, path: str, bazel_symlink_prefix: str):
         self.inner_tree = inner_tree
         self.path = path
+        self.bazel_symlink_prefix = bazel_symlink_prefix
 
     def fullpath(self) -> str:
-        return os.path.join(self.inner_tree, self.path)
+        # To prevent writes to the source tree, the Bazel server is launched
+        # with --symlink_prefix.
+        # Inject the symlink prefix into the cquery result so that Build
+        # orchestrator can find the metadata files.
+        #
+        # e.g. cquery returns bazel-out/android_target-fastbuild/bin/... which
+        # does not exist.
+        # replace with <symlink_prefix>/bin/... which does exist.
+        cleaned_path = self.path.replace("bazel-out/android_target-fastbuild/", self.bazel_symlink_prefix)
+        return os.path.join(self.inner_tree, cleaned_path)
 
     def name(self) -> str:
         """Returns filename"""
@@ -109,7 +119,10 @@ class ApiExporterBazel(object):
         )
         if not contribution_targets:
             return None
-        self._run_bazel_cmd(subcmd="build", targets=contribution_targets)
+        self._run_bazel_cmd(subcmd="build",
+                            targets=contribution_targets,
+                            capture_output=False, # log everything to terminal
+                            )
         print(
             f"Running Bazel cquery on api_domain_contribution targets "
             f"in tree rooted at {self.inner_tree}"
@@ -118,14 +131,15 @@ class ApiExporterBazel(object):
             subcmd="cquery",
             targets=contribution_targets,
             subcmd_options=[
-                "--output=starlark",
-                # pylint: disable=line-too-long
-                "--starlark:expr=' '.join([f.path for f in target.files.to_list()])"
-            ])
-        filepaths = proc.stdout.decode().rstrip()  # Remove trailing newline
-        filepaths = filepaths.split(" ")  # Covert to array
+                "--output=files",
+            ],
+            capture_output=True, # parse cquery result from stdout
+        )
+        filepaths = proc.stdout.decode().split("\n")
         return [
-            ApiMetadataFile(inner_tree=self.inner_tree, path=filepath)
+            ApiMetadataFile(inner_tree=self.inner_tree,
+                            path=filepath,
+                            bazel_symlink_prefix=self._output_user_root())
             for filepath in filepaths
         ]
 
@@ -159,11 +173,13 @@ class ApiExporterBazel(object):
     def _run_bazel_cmd(self,
                        subcmd: str,
                        targets: List[str],
-                       subcmd_options=()) -> subprocess.CompletedProcess:
+                       subcmd_options=[],
+                       **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
         # b-equivalent entrypoint is available.
         self._run_bp2build_cmd()
+        output_user_root = self._output_user_root()
         cmd = [
             # Android's Bazel-entrypoint. Contains configs like the JDK to use.
             "build/bazel/bazel.sh",
@@ -171,11 +187,18 @@ class ApiExporterBazel(object):
             # Run Bazel on the synthetic api_bp2build workspace.
             "--config=api_bp2build",
             "--config=android",
+            f"--symlink_prefix={output_user_root}", # Use prefix hack to create the convenience symlinks in out/
         ]
         cmd += subcmd_options + targets
-        return self._run_cmd(cmd)
+        return self._run_cmd(cmd, **kwargs)
 
-    def _run_bp2build_cmd(self) -> subprocess.CompletedProcess:
+    # Create a unique output root for this workspace inside the nsjail.
+    # This ensures that we do not share a single Bazel server between the
+    # workspace inside and outside the nsjail.
+    def _output_user_root(self) -> str:
+        return os.path.join(self.inner_tree, self.out_dir, "bazel")
+
+    def _run_bp2build_cmd(self, **kwargs) -> subprocess.CompletedProcess:
         """Runs b2pbuild to generate the synthetic Bazel workspace"""
         cmd = [
             "build/soong/soong_ui.bash",
@@ -185,20 +208,20 @@ class ApiExporterBazel(object):
             "api_bp2build",
             "--skip-soong-tests",
         ]
-        return self._run_cmd(cmd)
+        return self._run_cmd(cmd, **kwargs)
 
-    def _run_cmd(self, cmd) -> subprocess.CompletedProcess:
+    def _run_cmd(self, cmd, **kwargs) -> subprocess.CompletedProcess:
         proc = subprocess.run(cmd,
                               cwd=self.inner_tree,
                               shell=False,
                               check=False,
-                              capture_output=True)
+                              **kwargs)
         if proc.returncode:
             sys.stderr.write(
                 f"export_api_contributions: {cmd} failed with error message:\n"
             )
-            sys.stdout.write(proc.stderr.decode())
-            sys.stdout.write(proc.stdout.decode())
+            if proc.stderr:
+                sys.stderr.write(proc.stderr.decode())
             sys.exit(proc.returncode)
         return proc
 
