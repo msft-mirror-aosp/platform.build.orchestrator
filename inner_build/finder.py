@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Module for finding files in a tree"""
 
 from collections.abc import Iterator
@@ -21,23 +20,24 @@ from collections.abc import Iterator
 import os
 import sys
 
+
 class FileFinder:
-    def __init__(self,
-                 filename: str,
-                 ignore_paths=[],
-                 prune_hidden_dirs=True):
-        """
-        Lightweight Single-threaded Non-cached file finder
+    def __init__(self, filename: str, ignore_paths=(), prune_hidden_dirs=True):
+        """Lightweight Single-threaded Non-cached file finder
 
         Arguments:
             filename: filename, should not contain directory prefixes
-            ignore_paths: filepath of dirs to ignore (e.g. $ANDROID_BUILD_TOP/out)
-            prune_hidden_dirs: whether hidden dirs (beginning with a dot character) should be ignored
+            ignore_paths: filepath of dirs to ignore (e.g.
+                          $ANDROID_BUILD_TOP/out)
+            prune_hidden_dirs: whether hidden dirs (beginning with a dot
+                          character) should be ignored
         """
         self.filename = filename
         self.ignore_paths = ignore_paths
         if prune_hidden_dirs and os.name != "posix":
-            raise Exception("Skipping hidden directories is not supported on non-Unix platforms")
+            raise Exception(
+                "Skipping hidden directories is not supported on this platform"
+            )
         self.prune_hidden_dirs = prune_hidden_dirs
 
     def _is_hidden_dir(self, dirname: str) -> bool:
@@ -49,7 +49,8 @@ class FileFinder:
 
         Arguments:
             path: Search root
-            search_depth: Search maxdepth (relative to root). Search will be pruned beyond this level
+            search_depth: Search maxdepth (relative to root). Search will be
+                          pruned beyond this level
 
         Returns:
             An iterator of filepaths that match <filename>
@@ -59,13 +60,14 @@ class FileFinder:
 
         subdirs = []
         with os.scandir(path) as it:
-            for dirent in sorted(it, key=lambda x : x.name):
+            for dirent in sorted(it, key=lambda x: x.name):
                 try:
                     if dirent.is_file():
                         if dirent.name == self.filename:
                             yield dirent.path
                     elif dirent.is_dir():
-                        if dirent.path not in self.ignore_paths and not self._is_hidden_dir(dirent.name):
+                        if (dirent.path not in self.ignore_paths
+                                and not self._is_hidden_dir(dirent.name)):
                             subdirs.append(dirent.path)
                 except OSError as ex:
                     # Log the exception, but continue traversing

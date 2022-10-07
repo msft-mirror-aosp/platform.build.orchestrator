@@ -13,9 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Module that searches the tree for files named api_packages.json and returns the
-Fully Qualified Bazel label of API domain contributions to API surfaces.
+"""Module that searches the tree for files named api_packages.json and returns
+the Fully Qualified Bazel label of API domain contributions to API surfaces.
 """
 
 from collections import namedtuple
@@ -28,24 +27,33 @@ from finder import FileFinder
 # GLOBALS
 # Filename to search for
 API_PACKAGES_FILENAME = "api_packages.json"
-# Default name of the api contribution Bazel target. Can be overridden by module authors in api_packages.json
+# Default name of the api contribution Bazel target. Can be overridden by module
+# authors in api_packages.json.
 DEFAULT_API_TARGET = "contributions"
 # Directories inside inner_tree that will be searched for api_packages.json
 # This pruning improves the speed of the API export process
 INNER_TREE_SEARCH_DIRS = [
-("build", "orchestrator"), # TODO: Update after system's contributions are moved to a different git project
-("frameworks", "base"),
-("packages", "modules")]
+    (
+        "build", "orchestrator"
+    ),  # TODO: Remove once build/orchestrator stops contributing to system.
+    ("frameworks", "base"),
+    ("packages", "modules")
+]
 
+
+# TODO: Fix line lengths and re-enable the pylint check..
+# pylint: disable=line-too-long
 class BazelLabel:
     """Class to represent a Fully qualified API contribution Bazel target
     https://docs.bazel.build/versions/main/skylark/lib/Label.html"""
-    def __init__(self, package: str, target:str):
+
+    def __init__(self, package: str, target: str):
         self.package = package.rstrip(":")
         self.target = target.lstrip(":")
 
     def to_string(self):
         return self.package + ":" + self.target
+
 
 class ApiPackageDecodeException(Exception):
     def __init__(self, filepath: str, msg: str):
@@ -53,7 +61,10 @@ class ApiPackageDecodeException(Exception):
         msg = f"Found malformed api_packages.json file at {filepath}: " + msg
         super().__init__(msg)
 
-ContributionData = namedtuple("ContributionData", ("api_domain", "api_contribution_bazel_label"))
+
+ContributionData = namedtuple("ContributionData",
+                              ("api_domain", "api_contribution_bazel_label"))
+
 
 def read(filepath: str) -> ContributionData:
     """Deserialize the contents of the json file at <filepath>
@@ -62,21 +73,30 @@ def read(filepath: str) -> ContributionData:
     Returns:
         ContributionData object
     """
-    def _deserialize(filepath, json_contents) ->ContributionData:
+
+    def _deserialize(filepath, json_contents) -> ContributionData:
         domain = json_contents.get("api_domain")
         package = json_contents.get("api_package")
         target = json_contents.get("api_target", "") or DEFAULT_API_TARGET
         if not domain:
-            raise ApiPackageDecodeException(filepath, "api_domain is a required field in api_packages.json")
+            raise ApiPackageDecodeException(
+                filepath,
+                "api_domain is a required field in api_packages.json")
         if not package:
-             raise ApiPackageDecodeException(filepath, "api_package is a required field in api_packages.json")
-        return ContributionData(domain, BazelLabel(package=package,target=target))
+            raise ApiPackageDecodeException(
+                filepath,
+                "api_package is a required field in api_packages.json")
+        return ContributionData(domain,
+                                BazelLabel(package=package, target=target))
 
-    with open(filepath) as f:
+    with open(filepath, encoding='iso-8859-1') as f:
         try:
-            return json.load(f, object_hook=lambda json_contents: _deserialize(filepath,json_contents))
+            return json.load(f,
+                             object_hook=lambda json_contents: _deserialize(
+                                 filepath, json_contents))
         except json.decoder.JSONDecodeError as ex:
             raise ApiPackageDecodeException(filepath, "") from ex
+
 
 class ApiPackageFinder:
     """A class that searches the tree for files named api_packages.json and returns the fully qualified Bazel label of the API contributions of API domains
@@ -92,26 +112,31 @@ class ApiPackageFinder:
 
     The search is restricted to $INNER_TREE_SEARCH_DIRS
     """
-    def __init__(self,
-            inner_tree_root: str,
-            search_depth=6):
+
+    def __init__(self, inner_tree_root: str, search_depth=6):
         self.inner_tree_root = inner_tree_root
         self.search_depth = search_depth
-        self.finder = FileFinder(filename=API_PACKAGES_FILENAME,
-                                 ignore_paths=[],
-                                 )
-        self._cache = dict()
+        self.finder = FileFinder(
+            filename=API_PACKAGES_FILENAME,
+            ignore_paths=[],
+        )
+        self._cache = {}
 
     def _find_api_label(self, api_domain: str) -> BazelLabel:
         if api_domain in self._cache:
             return self._cache.get(api_domain)
 
-        search_paths = [os.path.join(self.inner_tree_root, *search_dir) for search_dir in INNER_TREE_SEARCH_DIRS]
+        search_paths = [
+            os.path.join(self.inner_tree_root, *search_dir)
+            for search_dir in INNER_TREE_SEARCH_DIRS
+        ]
         for search_path in search_paths:
-            for packages_file in self.finder.find(path=search_path, search_depth=self.search_depth):
+            for packages_file in self.finder.find(
+                    path=search_path, search_depth=self.search_depth):
                 # Read values and add them to cache
                 results = read(packages_file)
-                self._cache[results.api_domain] = results.api_contribution_bazel_label
+                self._cache[
+                    results.api_domain] = results.api_contribution_bazel_label
                 # If an entry is found, stop searching
                 if api_domain in self._cache:
                     return self._cache.get(api_domain)
@@ -149,5 +174,5 @@ class ApiPackageFinder:
             Bazel label, e.g. //frameworks/base
             None if a contribution could not be found
         """
-        label = self._find_api_label(api_domain)
+        label = self._find_api_label(api_domain_name)
         return label.package if label else None
