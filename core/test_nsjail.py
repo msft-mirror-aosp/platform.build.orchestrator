@@ -67,7 +67,13 @@ class TestNsjail(unittest.TestCase):
         self.assertEqual(self.config, config)
 
     def testDefault(self):
+        # Verify that a default entry is present.
         self.assertIn(
+            '\nmount {\n  dst: "/dev/shm"\n  fstype: "tmpfs"\n'
+            '  is_bind: false\n  rw: true\n}\n\n', self.config)
+        # Verify that proc is mounted correctly.
+        self.assertIn('\nmount_proc: true\n', self.config)
+        self.assertNotIn(
             '\nmount {\n  dst: "/proc"\n  fstype: "proc"\n  rw: false\n}\n\n',
             self.config)
 
@@ -82,8 +88,8 @@ class TestNsjail(unittest.TestCase):
         config = self.config
         # Verify that both a default entry and the one we added are present.
         self.assertIn(
-            '\nmount {\n  dst: "/proc"\n  fstype: "proc"\n  rw: false\n}\n\n',
-            config)
+            '\nmount {\n  dst: "/dev/shm"\n  fstype: "tmpfs"\n'
+            '  is_bind: false\n  rw: true\n}\n\n', self.config)
         self.assertIn('\nmount {\n  dst: "/test"\n}\n\n', config)
 
 
