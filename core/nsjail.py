@@ -124,7 +124,9 @@ class Nsjail(object):
         self.verbose = verbose
         # Add the mount points that we always need.
         self.mounts = [
-            MountPt(dst="/proc", fstype="proc", rw=False),
+            # Mount proc so that the PID namespace can be shared between the
+            # parent and child process.
+            MountPt(src="/proc", dst="/proc", is_bind=True, rw=True, mandatory=True),
             # TODO: we may need to use something other than tmpfs for this,
             # because of some tests, etc.
             MountPt(dst="/tmp",
@@ -302,6 +304,18 @@ class Nsjail(object):
             # Some tools in the build toolchain expect a $HOME to be set
             # Point $HOME to /tmp in case the toolchain needs to write something out there
             envar: "HOME=/tmp"
+
+            # Share PID and Network namespace between parent and child process.
+            # Sharing the PID namespace ensures that the Bazel daemon does not
+            # get killed after every invocation.
+            # Sharing the Network namespace ensures that the Bazel client can
+            # communicate with the Bazel daemon.
+            #
+            # This does not preclude build systems of inner trees from setting
+            # up different sandbox configs. e.g. Soong is free to run the build
+            # in a sandbox that disables network access.
+            clone_newnet: false
+            clone_newpid: false
 
             """)
         for mount in self.mounts:
