@@ -23,7 +23,7 @@ import ninja_syntax # Has to be after ninja_tools because of the path hack
 def final_packaging(context, inner_trees):
     """Pull together all of the previously defined rules into the final build stems."""
 
-    with open(context.out.outer_ninja_file(), "w") as ninja_file:
+    with open(context.out.outer_ninja_file(), "w", encoding='iso-8859-1') as ninja_file:
         ninja = ninja_tools.Ninja(context, ninja_file)
 
         # Add the api surfaces file
@@ -48,7 +48,7 @@ def final_packaging(context, inner_trees):
 def read_build_targets_json(context, tree):
     """Read and validate the build_targets.json file for the given tree."""
     try:
-        f = open(tree.out.build_targets_file())
+        f = open(tree.out.build_targets_file(), encoding='iso-8859-1')
     except FileNotFoundError:
         # It's allowed not to have any artifacts (e.g. if a tree is a light tree with only APIs)
         return None
