@@ -135,7 +135,9 @@ class ApiExporterBazel(object):
             ],
             capture_output=True, # parse cquery result from stdout
         )
-        filepaths = proc.stdout.decode().split("\n")
+        # The cquery response contains a blank line at the end.
+        # Remove this before creating the filepaths array.
+        filepaths = proc.stdout.decode().rstrip().split("\n")
         return [
             ApiMetadataFile(inner_tree=self.inner_tree,
                             path=filepath,
