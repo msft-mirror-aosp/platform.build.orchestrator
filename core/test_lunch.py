@@ -17,7 +17,6 @@
 import sys
 import unittest
 
-sys.dont_write_bytecode = True
 import lunch
 
 # Create a test LunchContext object

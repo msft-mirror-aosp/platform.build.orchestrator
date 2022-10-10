@@ -45,7 +45,7 @@ def assemble_apis(context, inner_trees):
     stub_libraries = collate_contributions(contributions)
 
     # Initialize the ninja file writer
-    with open(context.out.api_ninja_file(), "w") as ninja_file:
+    with open(context.out.api_ninja_file(), "w", encoding='iso-8859-1') as ninja_file:
         ninja = ninja_tools.Ninja(context, ninja_file)
 
         # Initialize the build file writer
@@ -78,7 +78,7 @@ def api_contribution_files_for_inner_tree(tree_key, inner_tree, cookie):
 
 def load_contribution_file(context, filename):
     "Load and return the API contribution at filename. On error report error and return None."
-    with open(filename) as f:
+    with open(filename, encoding='iso-8859-1') as f:
         try:
             return json.load(f)
         except json.decoder.JSONDecodeError as ex:
