@@ -32,6 +32,21 @@ def _bool(value):
     return bool(value)
 
 
+class Envar():
+    """Environment variables."""
+
+    def __init__(self, *args, name=None, value=None):
+        assert not args, "Envar only accepts kwargs"
+        self.name = name
+        self.value = value
+
+    def __str__(self):
+        if self.value is None:
+            # Use the current value of the variable.
+            return f'envar: "{self.name}"\n'
+        return f'envar: "{self.name}={self.value}"\n'
+
+
 class MountPt(object):
     def __init__(self,
                  _kw_only=(),
@@ -117,6 +132,23 @@ class MountPt(object):
                 and self.nosuid == other.nosuid and self.nodev == other.nodev
                 and self.noexec == other.noexec)
 
+    def copy(self):
+        return MountPt(src=self.src,
+                       prefix_src_env=self.prefix_src_env,
+                       src_content=self.src_content,
+                       dst=self.dst,
+                       prefix_dst_env=self.prefix_dst_env,
+                       fstype=self.fstype,
+                       options=self.options,
+                       is_bind=self.is_bind,
+                       rw=self.rw,
+                       is_dir=self.is_dir,
+                       mandatory=self.mandatory,
+                       is_symlink=self.is_symlink,
+                       nosuid=self.nosuid,
+                       nodev=self.nodev,
+                       noexec=self.noexec)
+
 
 class Nsjail(object):
     def __init__(self, cwd, verbose=False):
@@ -124,7 +156,14 @@ class Nsjail(object):
         self.verbose = verbose
         # Add the mount points that we always need.
         self.mounts = [
-            MountPt(dst="/proc", fstype="proc", rw=False),
+            # Mount proc so that the PID namespace can be shared between the
+            # parent and child process.
+            MountPt(src="/proc",
+                    dst="/proc",
+                    is_bind=True,
+                    rw=True,
+                    mandatory=True),
+
             # TODO: we may need to use something other than tmpfs for this,
             # because of some tests, etc.
             MountPt(dst="/tmp",
@@ -205,9 +244,39 @@ class Nsjail(object):
                     mandatory=False),
         ]
 
+        self.envars = [
+            # Some tools in the build toolchain expect a $HOME to be set Point
+            # $HOME to /tmp in case the toolchain needs to write something out
+            # there
+            Envar(name="HOME", value="/tmp"),
+            # By default nsjail does not propagate the environment into the
+            # jail. We need the path to be set up. There are a few ways to solve
+            # this problem, but to avoid an undocumented dependency we are
+            # explicit about the path we inject.
+            Envar(name="PATH", value="/usr/bin:/usr/sbin:/bin:/sbin"),
+        ]
+
+    def make_cwd_writable(self):
+        """Mark things under cwd writable."""
+        for mount in self.mounts:
+            if mount.dst.startswith(self.cwd) and not mount.rw:
+                if self.verbose:
+                    print(f"Marking {mount.dst} r/w")
+                mount.rw = True
+
     def add_mountpt(self, **kwargs):
         """Add a mountpoint to the config."""
         self.mounts.append(MountPt(**kwargs))
+
+    def add_envar(self, **kwargs):
+        """Add an envar to the config."""
+        self.envars.append(Envar(**kwargs))
+
+    def copy(self):
+        """Return a copy of ourselves."""
+        ret = Nsjail(self.cwd, verbose=self.verbose)
+        ret.mounts = [x.copy() for x in self.mounts()]
+        return ret
 
     @property
     def mount_points(self):
@@ -274,6 +343,7 @@ class Nsjail(object):
             # Below are all the host paths that shall be mounted
             # to the sandbox
 
+            # TODO: Determine if we need to have /proc from outside of the jail.
             mount_proc: false
 
             # The user must mount the source to /src using --bindmount
@@ -294,16 +364,22 @@ class Nsjail(object):
               count: 1
             }}
 
-            # By default nsjail does not propagate the environment into the jail. We need
-            # the path to be set up. There are a few ways to solve this problem, but to
-            # avoid an undocumented dependency we are explicit about the path we inject.
-            envar: "PATH=/usr/bin:/usr/sbin:/bin:/sbin"
-
-            # Some tools in the build toolchain expect a $HOME to be set
-            # Point $HOME to /tmp in case the toolchain needs to write something out there
-            envar: "HOME=/tmp"
+            # Share PID and Network namespace between parent and child process.
+            # Sharing the PID namespace ensures that the Bazel daemon does not
+            # get killed after every invocation.
+            # Sharing the Network namespace ensures that the Bazel client can
+            # communicate with the Bazel daemon.
+            #
+            # This does not preclude build systems of inner trees from setting
+            # up different sandbox configs. e.g. Soong is free to run the build
+            # in a sandbox that disables network access.
+            clone_newnet: false
+            clone_newpid: false
 
             """)
+        for envar in self.envars:
+            data += f'{envar}'
+        data += '\n'
         for mount in self.mounts:
             data += f'{mount}'
         if fn:

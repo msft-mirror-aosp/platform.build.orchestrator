@@ -24,6 +24,7 @@ from finder import FileFinder
 
 FILENAME = "myfile.json"
 
+
 def _create_file(root: str, rel_dir_path: str, filename: str):
     """Helper function to create an empty file in a test directory"""
     if ".." in rel_dir_path:
@@ -35,8 +36,8 @@ def _create_file(root: str, rel_dir_path: str, filename: str):
     filepath = os.path.join(dirpath, filename)
     Path(filepath).touch()
 
-class TestFileFinder(unittest.TestCase):
 
+class TestFileFinder(unittest.TestCase):
     def test_single_file_match(self):
         finder = FileFinder(FILENAME)
         # root dir
@@ -58,7 +59,8 @@ class TestFileFinder(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             _create_file(tmp, "a", FILENAME)
             _create_file(tmp, "a/b", FILENAME)
-            all_results = sorted(list(finder.find(tmp, search_depth=100)), reverse=True)
+            all_results = sorted(list(finder.find(tmp, search_depth=100)),
+                                 reverse=True)
             self.assertEqual(2, len(all_results))
             self.assertEqual(f"{tmp}/a/{FILENAME}", all_results[0])
             self.assertEqual(f"{tmp}/a/b/{FILENAME}", all_results[1])
@@ -69,7 +71,8 @@ class TestFileFinder(unittest.TestCase):
             _create_file(tmp, "", FILENAME)
             _create_file(tmp, "a", FILENAME)
             _create_file(tmp, "b", FILENAME)
-            search_dir_a_results = list(finder.find(f"{tmp}/a", search_depth=100))
+            search_dir_a_results = list(
+                finder.find(f"{tmp}/a", search_depth=100))
             self.assertEqual(1, len(search_dir_a_results))
             self.assertEqual(f"{tmp}/a/{FILENAME}", search_dir_a_results[0])
 
@@ -88,9 +91,13 @@ class TestFileFinder(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             finder = FileFinder(FILENAME, ignore_paths=[f"{tmp}/out"])
             _create_file(tmp, "", FILENAME)
-            _create_file(tmp, "out", FILENAME) # This should not appear in results
-            _create_file(tmp, "a/b/out", FILENAME) # This is "source code", should appear in results
-            results = sorted(list(finder.find(tmp, search_depth=100)), reverse=True)
+            _create_file(tmp, "out",
+                         FILENAME)  # This should not appear in results
+            _create_file(
+                tmp, "a/b/out",
+                FILENAME)  # This is "source code", should appear in results
+            results = sorted(list(finder.find(tmp, search_depth=100)),
+                             reverse=True)
             self.assertEqual(2, len(results))
             self.assertEqual(f"{tmp}/{FILENAME}", results[0])
             self.assertEqual(f"{tmp}/a/b/out/{FILENAME}", results[1])
@@ -102,14 +109,17 @@ class TestFileFinder(unittest.TestCase):
             _create_file(tmp, "", FILENAME)
             _create_file(tmp, ".hidden_dir", FILENAME)
             _create_file(tmp, "visible_dir", FILENAME)
-            self.assertEqual(2, len(list(prune_hidden_dir_finder.find(tmp, search_depth=100))))
-            self.assertEqual(3, len(list(all_dir_finder.find(tmp, search_depth=100))))
+            self.assertEqual(
+                2,
+                len(list(prune_hidden_dir_finder.find(tmp, search_depth=100))))
+            self.assertEqual(
+                3, len(list(all_dir_finder.find(tmp, search_depth=100))))
 
 
 if __name__ == "__main__":
     # This unit test assumes that the file separator is /
-    # A generic solution would use os.path.join to join path fragments and make this test platform agnostic
-    # But this makes the test less readable
+    # A generic solution would use os.path.join to join path fragments and make
+    # this test platform agnostic, but would make the test less readable.
     if os.name != "posix":
         raise Exception(f"This unit test is not supported on {os.name}")
     unittest.main()

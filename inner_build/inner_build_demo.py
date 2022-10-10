@@ -21,7 +21,7 @@ import textwrap
 
 import common
 
-_TEST_DIR="build/orchestrator/test_workspace/inner_tree_1"
+_TEST_DIR = "build/orchestrator/test_workspace/inner_tree_1"
 _DEMO_RULES_TEMPLATE = """\
 rule compile_c
     command = mkdir -p ${out_dir} && g++ -c ${cflags} -o ${out} ${in}
@@ -36,53 +36,35 @@ build system: phony %(OUT_DIR)s/libhello1/libhello1.so
 """
 
 
-class InnerBuildSoong(common.Commands):
-    def describe(self, args):
-        with open(args.input_json, encoding='iso-8859-1') as f:
-            query = json.load(f)
-
-        domain_data = [dict(domains=[query.get("build_domains", [])])]
-        reply = dict(version=0, domain_data=domain_data)
-
-        filename = args.output_json or os.path.join(args.out_dir,
-                                                    "tree_info.json")
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "w", encoding='iso-8859-1') as f:
-            json.dump(reply, f, indent=4)
-
+class InnerBuildDemo(common.Commands):
     def export_api_contributions(self, args):
         contributions_dir = os.path.join(args.out_dir, "api_contributions")
         os.makedirs(contributions_dir, exist_ok=True)
 
         if "system" in args.api_domain:
+            reply = dict(name="publicapi",
+                         api_domain="system",
+                         version=1,
+                         cc_libraries=[
+                             dict(
+                                 name="libhello1",
+                                 api=f"{_TEST_DIR}/libhello1.map.txt",
+                                 api_surfaces=["publicapi"],
+                                 headers=[
+                                     dict(
+                                         arch="",
+                                         headers=[f"{_TEST_DIR}/hello1.h"],
+                                         root=f"{_TEST_DIR}",
+                                         name="libhello1_headers.contribution",
+                                         system=False)
+                                 ],
+                             )
+                         ])
             with open(os.path.join(contributions_dir, "api_a-1.json"),
                       "w",
                       encoding='iso-8859-1') as f:
-                # 'name: android' is android.jar
-                f.write(
-                    # pylint: disable=consider-using-f-string
-                    textwrap.dedent("""\
-                {
-                    "name": "api_a",
-                    "version": 1,
-                    "api_domain": "system",
-                    "cc_libraries": [
-                        {
-                            "name": "libhello1",
-                            "headers": [
-                                {
-                                    "root": "%(TEST_DIR)s",
-                                    "files": [
-                                        "hello1.h"
-                                    ]
-                                }
-                            ],
-                            "api": [
-                                    "%(TEST_DIR)s/libhello1"
-                            ]
-                        }
-                    ]
-                }""" % dict(TEST_DIR=_TEST_DIR)))
+                json.dump(reply, f, indent=4)
+                return
 
     def analyze(self, args):
         if "system" in args.api_domain:
@@ -93,8 +75,10 @@ class InnerBuildSoong(common.Commands):
                       "w",
                       encoding='iso-8859-1') as f:
                 f.write(
-                    textwrap.dedent(_DEMO_RULES_TEMPLATE %
-                                    {"OUT_DIR": args.out_dir}))
+                    textwrap.dedent(_DEMO_RULES_TEMPLATE % {
+                        "OUT_DIR": args.out_dir,
+                        "TEST_DIR": _TEST_DIR
+                    }))
             with open(os.path.join(args.out_dir, "build_targets.json"),
                       "w",
                       encoding='iso-8859-1') as f:
@@ -111,7 +95,7 @@ class InnerBuildSoong(common.Commands):
 
 
 def main(argv):
-    return InnerBuildSoong().Run(argv)
+    return InnerBuildDemo().Run(argv)
 
 
 if __name__ == "__main__":
