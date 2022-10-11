@@ -14,7 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+
 def export_apis_from_tree(tree_key, inner_tree, cookie):
-    inner_tree.invoke(["export_api_contributions"])
+    """Call inner_build export_api_contributions."""
+    cmd = ["export_api_contributions"]
+    # Pass the abspath of the inner_tree.  The nsjail config will change
+    # directory to this path at invocation.
+    cmd.extend(["--inner_tree", os.path.join(os.getcwd(), inner_tree.root)])
 
+    for domain_name in sorted(inner_tree.domains.keys()):
+        cmd.append("--api_domain")
+        cmd.append(domain_name)
 
+    inner_tree.invoke(cmd)

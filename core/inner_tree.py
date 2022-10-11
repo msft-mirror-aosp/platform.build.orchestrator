@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import enum
 import json
 import os
@@ -23,7 +22,6 @@ import sys
 import textwrap
 
 import nsjail
-import utils
 
 _INNER_BUILD = ".inner_build"
 
@@ -92,7 +90,7 @@ class InnerTreeKey(object):
 
 
 class InnerTree(object):
-    def __init__(self, context, paths, product):
+    def __init__(self, context, paths, product, variant):
         """Initialize with the inner tree root (relative to the workspace root)"""
         if not isinstance(paths, list):
             paths = [paths]
@@ -100,12 +98,15 @@ class InnerTree(object):
         self.meld_dirs = paths[1:]
         # TODO: more complete checking (include '../' in the checks, etc.
         if any(x.startswith(os.path.sep) for x in self.meld_dirs):
-            raise(Exception(f"meld directories may not start with {os.path.sep}"))
+            raise Exception(
+                f"meld directories may not start with {os.path.sep}")
         if any(x.startswith('=') for x in self.meld_dirs[1:]):
-            raise(Execption(f'only the first meld directory can specify "="'))
+            raise Exception('only the first meld directory can specify "="')
 
         self.product = product
+        self.variant = variant
         self.domains = {}
+        self.context = context
         self.nsjail = context.tools.nsjail
         self.out_root_origin = context.out.inner_tree_dir(self.root, product)
         self.out = OutDirLayout(self.root, self.out_root_origin)
@@ -125,8 +126,14 @@ class InnerTree(object):
 
         inner_tree_src_path = os.path.abspath(self.root)
         config = nsjail.Nsjail(inner_tree_src_path)
-        inner_tree_out_path = self.out.root(base=self.out.Base.OUTER, abspath=True)
+        inner_tree_out_path = self.out.root(base=self.out.Base.OUTER,
+                                            abspath=True)
         out_root_origin = self.out.root()
+
+        # Add TARGET_PRODUCT and TARGET_BUILD_VARIANT.
+        if self.product:
+            config.add_envar(name="TARGET_PRODUCT", value=self.product)
+        config.add_envar(name="TARGET_BUILD_VARIANT", value=self.variant)
 
         # If the first meld dir path starts with "=", overlay the entire tree
         # with that before melding other sub manifests.
@@ -149,6 +156,18 @@ class InnerTree(object):
                            is_bind=True,
                            rw=True,
                            mandatory=True)
+
+        # TODO: Once we have the lightweight tree, this mount should move to
+        # platform/apisurfaces, and be mandatory.
+        api_surfaces = self.context.out.api_surfaces_dir(
+            base=self.context.out.Base.ORIGIN, abspath=True)
+        if os.path.isdir(api_surfaces):
+            config.add_mountpt(src=api_surfaces,
+                               dst=os.path.join(inner_tree_src_path,
+                                                "platform", "api_surfaces"),
+                               is_bind=True,
+                               rw=False,
+                               mandatory=False)
 
         def _meld_git(shared, src):
             dst = os.path.join(self.root, src[len(shared) + 1:])
@@ -173,7 +192,7 @@ class InnerTree(object):
             if os.path.isdir(os.path.join(shared, '.git')):
                 # TODO: If this is the root of the meld_dir, process the
                 # modules instead of the git project.
-                print(f'TODO: handle git submodules case')
+                print('TODO: handle git submodules case')
                 continue
 
             # Use os.walk (which uses os.scandir), so that we get recursion
@@ -219,20 +238,19 @@ class InnerTree(object):
 
         # Build the command
         cmd = [
-            self.nsjail, "--config", nsjail_config_file, "--",
-            os.path.join(inner_tree_src_path, _INNER_BUILD), "--out_dir",
+            self.nsjail,
+            "--config",
+            nsjail_config_file,
+            "--",
+            os.path.join(inner_tree_src_path, _INNER_BUILD),
+            "--out_dir",
             self.out.root(base=self.out.Base.INNER),
         ]
-        for domain_name in sorted(self.domains.keys()):
-            cmd.append("--api_domain")
-            cmd.append(domain_name)
-        # full path of the inner_tree (including multitree_root)
-        cmd.extend(["--inner_tree", os.path.join(os.getcwd(), self.root)])
         cmd += args
 
         # Run the command
         print("% " + " ".join(cmd))
-        process = subprocess.run(cmd, shell=False)
+        process = subprocess.run(cmd, shell=False, check=False)
 
         # TODO: Probably want better handling of inner tree failures
         if process.returncode:
@@ -248,7 +266,7 @@ class InnerTrees(object):
         self.domains = domains
 
     def __str__(self):
-        "Return a debugging dump of this object"
+        """Return a debugging dump of this object"""
 
         def _vals(values):
             return ("\n" + " " * 16).join(sorted([str(t) for t in values]))
@@ -284,7 +302,7 @@ class InnerTrees(object):
         return self.trees.get(tree_key)
 
     def keys(self):
-        "Get the keys for the inner trees in name order."
+        """Get the keys for the inner trees in name order."""
         return [self.trees[k] for k in sorted(self.trees.keys())]
 
 
@@ -328,7 +346,8 @@ class OutDirLayout(object):
         self._base[self.Base.INNER] = out_path
         self._base[self.Base.DEFAULT] = self._base[self.Base.ORIGIN]
 
-    def _generate_path(self, relpath,
+    def _generate_path(self,
+                       *args,
                        base: OutDirBase = OutDirBase.DEFAULT,
                        abspath=False):
         """Return the path to the file.
@@ -338,13 +357,13 @@ class OutDirLayout(object):
           base: Which base path to use.
           abspath: return the absolute path.
         """
-        ret = os.path.join(self._base[base], relpath)
+        ret = os.path.join(self._base[base], *args)
         if abspath:
             ret = os.path.abspath(ret)
         return ret
 
-    def root(self, **kwargs):
-        return self._generate_path("", **kwargs)
+    def root(self, *args, **kwargs):
+        return self._generate_path(*args, **kwargs)
 
     def api_contributions_dir(self, **kwargs):
         return self._generate_path("api_contributions", **kwargs)
@@ -363,7 +382,6 @@ class OutDirLayout(object):
 
     def tree_query(self, **kwargs):
         return self._generate_path("tree_query.json", **kwargs)
-
 
 
 def enquote(s):
