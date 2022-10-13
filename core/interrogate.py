@@ -38,9 +38,9 @@ def interrogate_tree(_tree_key, inner_tree, _cookie):
     with open(inner_tree.out.tree_query(), 'w', encoding="iso-8859-1") as f:
         f.write(json.dumps(query))
     inner_tree.invoke([
-        "describe", "--input-json",
+        "describe", "--input_json",
         inner_tree.out.tree_query(base=inner_tree.out.Base.INNER),
-        "--output-json",
+        "--output_json",
         inner_tree.out.tree_info_file(base=inner_tree.out.Base.INNER)
     ])
 
@@ -50,8 +50,8 @@ def interrogate_tree(_tree_key, inner_tree, _cookie):
     except FileNotFoundError as e:
         raise DescribeError(inner_tree, "No return from interrogate.") from e
     except json.decoder.JSONDecodeError as e:
-        raise DescribeError(inner_tree,
-                            f"Failed to parse interrogate response: {e}") from e
+        raise DescribeError(
+            inner_tree, f"Failed to parse interrogate response: {e}") from e
 
     if not isinstance(info_json, dict):
         raise DescribeError(inner_tree, "Malformed describe response")

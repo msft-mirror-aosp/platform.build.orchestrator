@@ -12,13 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
 
 def analyze_trees(context, inner_trees):
     inner_trees.for_each_tree(run_analysis)
 
+
 def run_analysis(tree_key, inner_tree, cookie):
-    inner_tree.invoke(["analyze"])
+    """Call inner_build analyze."""
+    context = inner_tree.context
+    cmd = ["analyze"]
 
+    # Pass the abspath of the inner_tree.  The nsjail config will change
+    # directory to this path at invocation.
+    cmd.extend(["--inner_tree", os.path.join(os.getcwd(), inner_tree.root)])
 
+    # Pass the api_surfaces directory.
+    cmd.extend(["--api_surfaces_dir",
+                context.out.api_surfaces_dir(base=context.out.Base.ORIGIN)])
 
-
+    inner_tree.invoke(cmd)
