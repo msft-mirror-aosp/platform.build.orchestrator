@@ -103,7 +103,8 @@ class Orchestrator():
             if tree_key in trees:
                 tree = trees[tree_key]
             else:
-                tree = inner_tree.InnerTree(context, tree_root, product)
+                tree = inner_tree.InnerTree(context, tree_root, product,
+                                            self.variant)
                 trees[tree_key] = tree
             domain = api_domain.ApiDomain(domain_name, tree, product)
             domains[domain_name] = domain
@@ -135,9 +136,10 @@ class Orchestrator():
         # with all of the inner tree nsjail configs merged with it, so that we
         # can do one ninja run this step.  The source workspace is mounted
         # read-only, with the out_dir mounted read-write.
-        jail_cfg = nsjail.Nsjail(os.path.abspath("."))
-        jail_cfg.add_mountpt(src=os.path.abspath("."),
-                             dst=os.path.abspath("."),
+        root = os.path.abspath('.')
+        jail_cfg = nsjail.Nsjail(root)
+        jail_cfg.add_mountpt(src=root,
+                             dst=root,
                              is_bind=True,
                              rw=False,
                              mandatory=True)
@@ -151,6 +153,17 @@ class Orchestrator():
                              is_bind=True,
                              rw=True,
                              mandatory=True)
+
+        # TODO: Once we have the lightweight tree, this mount should move to
+        # platform/apisurfaces, and be mandatory.
+        # TODO: Does the outer tree (orchestrator) need to have this mapped into
+        # nsjail?
+        jail_cfg.add_mountpt(
+            src=out.api_surfaces_dir(base=out.Base.ORIGIN),
+            dst=os.path.join(root, "platform", "api_surfaces"),
+            is_bind=True,
+            rw=False,
+            mandatory=False)
 
         for tree in self.inner_trees.trees.values():
             jail_cfg.add_nsjail(tree.meld_config)
@@ -167,10 +180,10 @@ class Orchestrator():
         # 1. Interrogate the trees
         description = inner_trees.for_each_tree(interrogate.interrogate_tree)
         # TODO: Do something when bazel_only is True.  Provided now as an
-        # example in passing for querying the interrogation results.
-        _bazel_only = (
-            len(inner_trees.keys()) == 1 and
-            description.values[0].get("single_bazel_optimization_available"))
+        # example of how we can query the interrogation results.
+        _bazel_only = len(inner_trees.keys()) == 1 and all(
+            x.get("single_bazel_optimization_available")
+            for x in description.values())
 
         # 2a. API Export
         inner_trees.for_each_tree(api_export.export_apis_from_tree)
@@ -186,7 +199,7 @@ class Orchestrator():
 
         # 4. Build Execution
         # TODO: determine the targets from the lunch command and mcombo files.
-        targets = self.opt.targets or ["staging", "system/system"]
+        targets = self.opts.targets or ["staging", "system/system"]
         print("Running ninja...")
         ninja_runner.run_ninja(context, jail_cfg, targets)
 
