@@ -72,10 +72,11 @@ class TestNsjail(unittest.TestCase):
             '\nmount {\n  dst: "/dev/shm"\n  fstype: "tmpfs"\n'
             '  is_bind: false\n  rw: true\n}\n\n', self.config)
         # Verify that proc is mounted correctly.
-        self.assertIn('\nmount_proc: true\n', self.config)
-        self.assertNotIn(
-            '\nmount {\n  dst: "/proc"\n  fstype: "proc"\n  rw: false\n}\n\n',
-            self.config)
+        self.assertNotIn('\nmount_proc: true\n', self.config)
+        self.assertIn('\nmount_proc: false\n', self.config)
+        self.assertIn(
+            ('\nmount {\n  src: "/proc"\n  dst: "/proc"\n  is_bind: true\n  '
+             'rw: true\n  mandatory: true\n}\n'), self.config)
 
     def testCwd(self):
         self.cfg = nsjail.Nsjail(cwd="/cwd")

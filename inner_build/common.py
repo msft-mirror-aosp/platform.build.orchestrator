@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import argparse
+import contextlib
 import json
 import os
 
@@ -24,50 +25,60 @@ def _parser():
     # Top-level parser
     parser = argparse.ArgumentParser(prog=".inner_build")
 
-    parser.add_argument(
-        "--out_dir",
-        action="store",
-        required=True,
-        help=
-        "root of the output directory for this inner tree's API contributions")
+    # --out-dir is always provided.
+    parser.add_argument("--out_dir",
+                        action="store",
+                        required=True,
+                        help="output directory path")
 
-    parser.add_argument(
+    sub = parser.add_subparsers(required=True,
+                                dest="command",
+                                help="subcommands")
+
+    # inner_build describe command
+    describe = sub.add_parser(
+        "describe",
+        help="describe the capabilities of this inner tree's build system")
+    describe.add_argument('--input_json',
+                          required=True,
+                          help="The json encoded request information.")
+    describe.add_argument('--output_json',
+                          required=True,
+                          help="The json encoded description.")
+
+    # create the parser for the "export_api_contributions" command.
+    export = sub.add_parser(
+        "export_api_contributions",
+        help="export the API contributions of this inner tree")
+    export.add_argument(
         "--api_domain",
         action="append",
         required=True,
         help="which API domains are to be built in this inner tree")
-
-    parser.add_argument(
-        "--inner_tree",
-        action="store",
-        required=True,
-        help="root of the inner tree that is building the API domain")
-
-    subparsers = parser.add_subparsers(required=True,
-                                       dest="command",
-                                       help="subcommands")
-
-    # inner_build describe command
-    describe_parser = subparsers.add_parser(
-        "describe",
-        help="describe the capabilities of this inner tree's build system")
-    describe_parser.add_argument('--input-json',
-                                 '--input_json',
-                                 required=True,
-                                 help="The json encoded request information.")
-    describe_parser.add_argument('--output-json',
-                                 '--output_json',
-                                 required=True,
-                                 help="The json encoded description.")
-
-    # create the parser for the "export_api_contributions" command.
-    _export_parser = subparsers.add_parser(
-        "export_api_contributions",
-        help="export the API contributions of this inner tree")
+    # This is not needed now that we have nsjail, since it launches inner_build
+    # with cwd at the top of the inner tree.
+    export.add_argument("--inner_tree",
+                        action="store",
+                        required=True,
+                        help="path to the inner tree")
 
     # create the parser for the "analyze" command.
-    _analyze_parser = subparsers.add_parser(
-        "analyze", help="main build analysis for this inner tree")
+    analyze = sub.add_parser("analyze",
+                             help="main build analysis for this inner tree")
+    # TODO: do we need this, or does it just need to be mapped in nsjail?
+    analyze.add_argument("--api_surfaces_dir",
+                         action="append",
+                         required=True,
+                         help="the api_surfaces directory path")
+    analyze.add_argument("--generate_ninja",
+                         action="store_true",
+                         help="generate ninja rules")
+    # This is not needed now that we have nsjail, since it launches inner_build
+    # with cwd at the top of the inner tree.
+    analyze.add_argument("--inner_tree",
+                         action="store",
+                         required=True,
+                         help="path to the inner tree")
 
     return parser
 
@@ -113,3 +124,30 @@ class Commands(object):
 
     def analyze(self, args):
         raise Exception(f"analyze({args}) not implemented")
+
+
+@contextlib.contextmanager
+def setenv(**kwargs):
+    """Context to adjust environment."""
+    old_values = {}
+    delete_vars = set()
+    for k, v in kwargs.items():
+        # Save the prior state.
+        if k in os.environ:
+            old_values[k] = os.environ[k]
+        else:
+            delete_vars.add(k)
+
+        # Set the new value.
+        if v is None:
+            del os.environ[k]
+        else:
+            os.environ[k] = v
+    try:
+        yield
+    finally:
+        # Restore the old values.
+        for k, v in old_values.items():
+            os.environ[k] = v
+        for k in delete_vars:
+            del os.environ[k]
