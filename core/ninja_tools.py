@@ -35,6 +35,7 @@ class Ninja(ninja_writer.Writer):
         super().__init__(file, builddir=context.out.root(base=context.out.Base.OUTER), **kwargs)
         self._context = context
         self._did_copy_file = False
+        self._write_rule = None
         self._phonies = {}
 
     def add_copy_file(self, copy_to, copy_from):
@@ -44,7 +45,7 @@ class Ninja(ninja_writer.Writer):
             rule.add_variable("command", "mkdir -p ${out_dir} && " + self._context.tools.acp()
                     + " -f ${in} ${out}")
             self.add_rule(rule)
-        build_action = BuildAction(copy_to, "copy_file", inputs=[copy_from,],
+        build_action = BuildAction(output=copy_to, rule="copy_file", inputs=[copy_from,],
                 implicits=[self._context.tools.acp()])
         build_action.add_variable("out_dir", os.path.dirname(copy_to))
         self.add_build_action(build_action)
@@ -64,3 +65,18 @@ class Ninja(ninja_writer.Writer):
         for phony, deps in self._phonies.items():
             self.add_phony(phony, deps)
         super().write()
+
+    def add_write_file(self, filepath:str , content:str):
+        """Writes the content as a string to filepath
+        The content is written as-is, special characters are not escaped
+        """
+        if not self._write_rule:
+            rule = Rule("write_file")
+            rule.add_variable("description", "Writes content to out")
+            rule.add_variable("command", "printf '${content}' > ${out}")
+            self.add_rule(rule)
+            self._write_rule = rule
+
+        build_action = BuildAction(output=filepath, rule="write_file")
+        build_action.add_variable("content", content)
+        self.add_build_action(build_action)

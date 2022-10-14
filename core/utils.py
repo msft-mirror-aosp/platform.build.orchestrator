@@ -113,12 +113,20 @@ class OutDir(object):
 
     def api_library_work_dir(self, surface, version, library, **kwargs):
         """Intermediate scratch directory for library inside an API surface."""
-        return self._generate_path(_INTERMEDIATES, _API_SURFACES, surface,
-                                   str(version), library, **kwargs)
+        return self._generate_path(self.api_surfaces_work_dir(),
+                                   surface,
+                                   str(version),
+                                   library,
+                                   **kwargs)
 
     def api_surfaces_dir(self, **kwargs):
         """The published api_surfaces directory."""
         return self._generate_path(_API_SURFACES, **kwargs)
+
+    def api_surfaces_work_dir(self, *args):
+        """Intermediates / scratch directory for API surface assembly.
+        Useful for creating artifacts that are expected to be shared between multiple API libraries"""
+        return self._generate_path(_INTERMEDIATES, _API_SURFACES, *args)
 
     def outer_ninja_file(self, **kwargs):
         return self._generate_path("multitree.ninja", **kwargs)
