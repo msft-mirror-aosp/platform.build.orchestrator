@@ -110,12 +110,12 @@ class BuildAction(Node):
     https://ninja-build.org/manual.html#_build_statements"""
 
     def __init__(self,
-                 output: str,
                  rule: str,
+                 output: List[str] = None,
                  inputs: List[str] = None,
                  implicits: List[str] = None,
                  order_only: List[str] = None):
-        self.output = output
+        self.output = self._as_list(output)
         self.rule = rule
         self.inputs = self._as_list(inputs)
         self.implicits = self._as_list(implicits)
@@ -129,7 +129,8 @@ class BuildAction(Node):
     def stream(self) -> Iterator[str]:
         self._validate()
 
-        build_statement = f"build {self.output}: {self.rule}"
+        output = " ".join(self.output)
+        build_statement = f"build {output}: {self.rule}"
         if len(self.inputs) > 0:
             build_statement += " "
             build_statement += " ".join(self.inputs)
@@ -157,12 +158,19 @@ class BuildAction(Node):
                 "Rule is required in a ninja build statement")
 
     def _as_list(self, list_like):
-        if list_like is None:
+        if not list_like:
             return []
-        if isinstance(list_like, list):
+        elif isinstance(list_like, list):
             return list_like
-        return [list_like]
-
+        elif isinstance(list_like, tuple):
+            return list_like
+        elif isinstance(list_like, str):
+            return [list_like]
+        elif isinstance(list_like, int):
+            return [str(list_like)]
+        else:
+            raise NotImplementedError(f"{list_like} of type: {type(list_like)} is \
+not a recognized type in BuildAction")
 
 class Pool(Node):
     """https://ninja-build.org/manual.html#ref_pool"""
@@ -184,7 +192,6 @@ class Subninja(Node):
         self.subninja = subninja
         self.chDir = chDir
 
-    # TODO(spandandas): Update the syntax when aosp/2064612 lands
     def stream(self) -> Iterator[str]:
         token = f"subninja {self.subninja}"
         if self.chDir:
