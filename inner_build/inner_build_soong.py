@@ -33,6 +33,21 @@ class InnerBuildSoong(common.Commands):
                                     api_domains=args.api_domain)
         exporter.export_api_contributions()
 
+    def analyze(self, args):
+        """Run analysis on this tree."""
+        cmd = [
+            "build/soong/soong_ui.bash", "--build-mode",
+            f"--dir={args.inner_tree}", "-all-modules", "nothing"
+        ]
+        p = subprocess.run(cmd, shell=False, check=False)
+        if p.returncode:
+            sys.stderr.write(
+                f"analyze: {cmd} failed with error message:\n"
+                f"{p.stderr.decode() if p.stderr else ''}"
+            )
+            sys.exit(p.returncode)
+        return p
+
 
 class ApiMetadataFile(object):
     """Utility class that wraps the generated API surface metadata files"""

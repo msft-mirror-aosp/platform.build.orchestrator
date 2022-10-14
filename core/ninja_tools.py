@@ -16,18 +16,23 @@ import os
 import sys
 
 # Workaround for python include path
+# pylint: disable=wrong-import-position,import-error
 _ninja_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "ninja"))
 if _ninja_dir not in sys.path:
     sys.path.append(_ninja_dir)
 import ninja_writer
 from ninja_syntax import Variable, BuildAction, Rule, Pool, Subninja, Line
+# pylint: enable=wrong-import-position,import-error
 
 
 class Ninja(ninja_writer.Writer):
     """Some higher level constructs on top of raw ninja writing.
-    TODO: Not sure where these should be."""
+
+    TODO: Not sure where these should be.
+    """
+
     def __init__(self, context, file, **kwargs):
-        super(Ninja, self).__init__(file, builddir=context.out.root(base=context.out.Base.OUTER), **kwargs)
+        super().__init__(file, builddir=context.out.root(base=context.out.Base.OUTER), **kwargs)
         self._context = context
         self._did_copy_file = False
         self._phonies = {}
@@ -45,15 +50,17 @@ class Ninja(ninja_writer.Writer):
         self.add_build_action(build_action)
 
     def add_global_phony(self, name, deps):
-        """Add a phony target where there are multiple places that will want to add to
-        the same phony. If you can, to save memory, use add_phony instead of this function."""
+        """Add a global phony target.
+
+        This should be used when there are multiple places that will want to add
+        to the same phony. If you can, to save memory, use add_phony instead of
+        this function.
+        """
         if type(deps) not in (list, tuple):
-            raise Exception("Assertion failed: bad type of deps: %s" % type(deps))
+            raise Exception(f"Assertion failed: bad type of deps: {type(deps)}")
         self._phonies.setdefault(name, []).extend(deps)
 
     def write(self):
         for phony, deps in self._phonies.items():
             self.add_phony(phony, deps)
-        super(Ninja, self).write()
-
-
+        super().write()

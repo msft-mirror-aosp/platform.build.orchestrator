@@ -15,10 +15,7 @@
 # limitations under the License.
 
 import os
-import shutil
-import sys
 import tempfile
-import textwrap
 import unittest
 
 import inner_tree
@@ -75,14 +72,14 @@ class TestInnerTree(unittest.TestCase):
         os.chdir(self.oldcwd)
 
     def test_values(self):
-        tree = inner_tree.InnerTree(self.context, ["inner", "meld1", "meld2"], "product")
+        tree = inner_tree.InnerTree(self.context, ["inner", "meld1", "meld2"], "product", "user")
         self.assertEqual(tree.root, "inner")
         self.assertEqual(tree.meld_dirs, ["meld1", "meld2"])
         self.assertEqual(tree.product, "product")
 
     def test_bad_meld(self):
         with self.assertRaises(Exception):
-            inner_tree.InnerTree(self.context, ["inner", "/meld1"], "product")
+            inner_tree.InnerTree(self.context, ["inner", "/meld1"], "product", "user")
 
     def test_meld_config(self):
         # Create git projects in inner, meld1, meld2
@@ -90,7 +87,7 @@ class TestInnerTree(unittest.TestCase):
         dirs = (('inner', 'p1'), ('meld1', 'p1'), ('meld1', 'p2'), ('meld2', 'p2'), ('meld2', 'p3'))
         for d in dirs:
             os.makedirs(os.path.join(self.test_dir, *d, '.git'))
-        tree = inner_tree.InnerTree(self.context, ["inner", "meld1", "meld2"], "product")
+        tree = inner_tree.InnerTree(self.context, ["inner", "meld1", "meld2"], "product", "user")
         meld_config = tree.meld_config
         srcs = {x.src:x for x in meld_config.mounts}
 
