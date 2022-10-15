@@ -163,6 +163,14 @@ class Nsjail(object):
                     is_bind=True,
                     rw=True,
                     mandatory=True),
+            # Some commands may need /etc/alternatives to reach the correct
+            # binary.
+            MountPt(src="/etc/alternatives",
+                    dst="/etc/alternatives",
+                    is_bind=True,
+                    rw=False,
+                    mandatory=False
+                    ),
 
             # TODO: we may need to use something other than tmpfs for this,
             # because of some tests, etc.
