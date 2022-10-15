@@ -52,7 +52,7 @@ class Writer:
         self.nodes.append(subninja)
 
     def add_phony(self, name, deps):
-        build_action = BuildAction(name, "phony", inputs=deps)
+        build_action = BuildAction(output=name, rule="phony", inputs=deps)
         self.add_build_action(build_action)
 
     def write(self):

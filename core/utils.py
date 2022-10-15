@@ -113,12 +113,20 @@ class OutDir(object):
 
     def api_library_work_dir(self, surface, version, library, **kwargs):
         """Intermediate scratch directory for library inside an API surface."""
-        return self._generate_path(_INTERMEDIATES, _API_SURFACES, surface,
-                                   str(version), library, **kwargs)
+        return self._generate_path(self.api_surfaces_work_dir(),
+                                   surface,
+                                   str(version),
+                                   library,
+                                   **kwargs)
 
     def api_surfaces_dir(self, **kwargs):
         """The published api_surfaces directory."""
         return self._generate_path(_API_SURFACES, **kwargs)
+
+    def api_surfaces_work_dir(self, *args):
+        """Intermediates / scratch directory for API surface assembly.
+        Useful for creating artifacts that are expected to be shared between multiple API libraries"""
+        return self._generate_path(_INTERMEDIATES, _API_SURFACES, *args)
 
     def outer_ninja_file(self, **kwargs):
         return self._generate_path("multitree.ninja", **kwargs)
@@ -176,6 +184,10 @@ class Errors(object):
         """Get all errors that were reported."""
         return self._all
 
+# This clang_version was picked from Soong (build/soong/cc/config/global.go).
+# However, C stubs are ABI-stable and should not be affected by divergence in toolchain
+# versions of orchestrator and inner_build.
+CLANG_VERSION = "clang-r468909"
 
 class HostTools(object):
     def __init__(self):
@@ -192,6 +204,18 @@ class HostTools(object):
         self._acp = os.path.join(self._prebuilts, "acp")
         self._ninja = os.path.join(self._prebuilts, "ninja")
         self._nsjail = os.path.join(self._prebuilts, "nsjail")
+        clang_root = os.path.join(
+            "orchestrator",
+            "prebuilts",
+            "clang",
+            "host",
+            self._arch,
+            CLANG_VERSION,
+            "bin",
+        )
+        self._clang = os.path.join(clang_root, "clang")
+        self._clang_cxx = os.path.join(clang_root, "clang++")
+
 
     # TODO: @property
     def acp(self):
@@ -200,6 +224,12 @@ class HostTools(object):
     # TODO: @property
     def ninja(self):
         return self._ninja
+
+    def clang(self):
+        return self._clang
+
+    def clang_cxx(self):
+        return self._clang_cxx
 
     @property
     def nsjail(self):
