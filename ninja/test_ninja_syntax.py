@@ -95,7 +95,7 @@ class TestBuildAction(unittest.TestCase):
                             rule="cat",
                             inputs=["input1", "input2"],
                             implicits=["implicits1", "implicits2"],
-                            order_only=["order_only1", "order_only2"])
+                            order_only=("order_only1", "order_only2")) # tuple args
         self.assertEqual(
             "build out: cat input1 input2 | implicits1 implicits2 || " +
             "order_only1 order_only2", next(build.stream()))
