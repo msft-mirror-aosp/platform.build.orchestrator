@@ -60,6 +60,20 @@ class TestRule(unittest.TestCase):
                          next(stream))  # top-level rule should not be indented
         self.assertEqual("  command = /bin/bash echo", next(stream))
 
+    def test_rule_equality(self):
+        r1 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        r2 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        self.assertEqual(r1, r1)
+        self.assertEqual(r1, r2)
+
+        r1 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        r2 = Rule("RULE", (("description", "desc"), ("command", "cmd")))
+        r3 = Rule("rule", (("description", "DESC"), ("command", "cmd")))
+        r4 = Rule("rule", (("description", "desc"), ("command", "CMD")))
+        self.assertNotEqual(r1, r2)
+        self.assertNotEqual(r1, r3)
+        self.assertNotEqual(r1, r4)
+
     def test_rule_variables_are_sorted(self):
         rule = Rule(name="myrule")
         rule.add_variable("description", "Adding description before command")
@@ -95,7 +109,7 @@ class TestBuildAction(unittest.TestCase):
                             rule="cat",
                             inputs=["input1", "input2"],
                             implicits=["implicits1", "implicits2"],
-                            order_only=["order_only1", "order_only2"])
+                            order_only=("order_only1", "order_only2")) # tuple args
         self.assertEqual(
             "build out: cat input1 input2 | implicits1 implicits2 || " +
             "order_only1 order_only2", next(build.stream()))

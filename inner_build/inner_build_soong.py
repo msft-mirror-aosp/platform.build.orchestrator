@@ -18,7 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Tuple
 
 import common
 from find_api_packages import ApiPackageFinder
@@ -32,6 +32,21 @@ class InnerBuildSoong(common.Commands):
                                     out_dir=args.out_dir,
                                     api_domains=args.api_domain)
         exporter.export_api_contributions()
+
+    def analyze(self, args):
+        """Run analysis on this tree."""
+        cmd = [
+            "build/soong/soong_ui.bash", "--build-mode",
+            f"--dir={args.inner_tree}", "-all-modules", "nothing"
+        ]
+        p = subprocess.run(cmd, shell=False, check=False)
+        if p.returncode:
+            sys.stderr.write(
+                f"analyze: {cmd} failed with error message:\n"
+                f"{p.stderr.decode() if p.stderr else ''}"
+            )
+            sys.exit(p.returncode)
+        return p
 
 
 class ApiMetadataFile(object):
@@ -135,7 +150,9 @@ class ApiExporterBazel(object):
             ],
             capture_output=True, # parse cquery result from stdout
         )
-        filepaths = proc.stdout.decode().split("\n")
+        # The cquery response contains a blank line at the end.
+        # Remove this before creating the filepaths array.
+        filepaths = proc.stdout.decode().rstrip().split("\n")
         return [
             ApiMetadataFile(inner_tree=self.inner_tree,
                             path=filepath,
@@ -173,7 +190,7 @@ class ApiExporterBazel(object):
     def _run_bazel_cmd(self,
                        subcmd: str,
                        targets: List[str],
-                       subcmd_options=[],
+                       subcmd_options: Tuple[str] =(),
                        **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
@@ -189,6 +206,7 @@ class ApiExporterBazel(object):
             "--config=android",
             f"--symlink_prefix={output_user_root}", # Use prefix hack to create the convenience symlinks in out/
         ]
+        subcmd_options = list(subcmd_options)
         cmd += subcmd_options + targets
         return self._run_cmd(cmd, **kwargs)
 
