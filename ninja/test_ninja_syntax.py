@@ -60,6 +60,20 @@ class TestRule(unittest.TestCase):
                          next(stream))  # top-level rule should not be indented
         self.assertEqual("  command = /bin/bash echo", next(stream))
 
+    def test_rule_equality(self):
+        r1 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        r2 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        self.assertEqual(r1, r1)
+        self.assertEqual(r1, r2)
+
+        r1 = Rule("rule", (("description", "desc"), ("command", "cmd")))
+        r2 = Rule("RULE", (("description", "desc"), ("command", "cmd")))
+        r3 = Rule("rule", (("description", "DESC"), ("command", "cmd")))
+        r4 = Rule("rule", (("description", "desc"), ("command", "CMD")))
+        self.assertNotEqual(r1, r2)
+        self.assertNotEqual(r1, r3)
+        self.assertNotEqual(r1, r4)
+
     def test_rule_variables_are_sorted(self):
         rule = Rule(name="myrule")
         rule.add_variable("description", "Adding description before command")

@@ -28,10 +28,19 @@ class TestWriter(unittest.TestCase):
             writer = Writer(f)
             writer.add_variable(Variable(name="cflags", value="-Wall"))
             writer.add_newline()
+
             cc = Rule(name="cc")
             cc.add_variable(name="command", value="gcc $cflags -c $in -o $out")
             writer.add_rule(cc)
+            # Add the same rule twice.
+            ld = Rule(name="ld", variables=(("command", "ld $ldflags -o $out $in"),))
+            writer.add_rule(ld)
+            ld2 = Rule("ld", (("command", "ld $ldflags -o $out $in"),))
+            writer.add_rule(ld2)
             writer.add_newline()
+
+            writer.add_phony("system", ("foo.o",))
+            writer.add_phony("system", ["foo.o"])
             build_action = BuildAction(output="foo.o",
                                        rule="cc",
                                        inputs=["foo.c"])
@@ -42,7 +51,10 @@ class TestWriter(unittest.TestCase):
 
 rule cc
   command = gcc $cflags -c $in -o $out
+rule ld
+  command = ld $ldflags -o $out $in
 
+build system: phony foo.o
 build foo.o: cc foo.c
 ''', f.getvalue())
 
