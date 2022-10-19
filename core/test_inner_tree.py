@@ -66,7 +66,7 @@ class TestInnerTree(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.oldcwd = os.getcwd()
         os.chdir(self.test_dir)
-        self.context = utils.TestContext(self.test_dir, self.id())
+        self.context = utils.ContextTest(self.test_dir, self.id())
 
     def tearDown(self):
         os.chdir(self.oldcwd)
