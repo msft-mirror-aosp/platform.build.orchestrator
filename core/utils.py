@@ -31,10 +31,20 @@ class Context(object):
         self.tools = HostTools()
 
 
-class TestContext(Context):
-    "Context for testing. The real Context is manually constructed in orchestrator.py."
+class ContextTest(Context):
+    """Context for testing.
 
-    def __init__(self, test_work_dir, test_name):
+    The real Context is manually constructed in orchestrator.py.
+    """
+
+    def __init__(self, test_work_dir: str, test_name: str):
+        """Initialize the object.
+
+        Args:
+          test_work_dir: The working directory to use for the test: typically
+                         created with tempfile.mkdtemp().
+          test_name: A name unique to the test: typically self.id() in the test.
+        """
         super().__init__(os.path.join(test_work_dir, test_name), Errors(None))
 
 
@@ -139,11 +149,12 @@ class OutDir(object):
         return self._generate_path("staging", **kwargs)
 
     def dist_dir(self, **kwargs):
-        "The DIST_DIR provided or out/dist"  # TODO: Look at DIST_DIR
+        """The DIST_DIR provided or out/dist"""
+        # TODO: Look at DIST_DIR
         return self._generate_path("dist", **kwargs)
 
     def nsjail_config_file(self, **kwargs):
-        "The nsjail config file used for the ninja run."
+        """The nsjail config file used for the ninja run."""
         return self._generate_path("nsjail.cfg", **kwargs)
 
 
