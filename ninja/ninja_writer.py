@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 from ninja_syntax import Variable, BuildAction, Rule, Pool, Subninja, Line
 
 
@@ -30,9 +32,11 @@ class Writer:
     def add_variable(self, variable: Variable):
         self.nodes.append(variable)
 
+    @functools.lru_cache(maxsize=None)
     def add_rule(self, rule: Rule):
         self.nodes.append(rule)
 
+    @functools.lru_cache(maxsize=None)
     def add_build_action(self, build_action: BuildAction):
         self.nodes.append(build_action)
 
@@ -51,9 +55,8 @@ class Writer:
     def add_subninja(self, subninja: Subninja):
         self.nodes.append(subninja)
 
-    def add_phony(self, name, deps):
-        build_action = BuildAction(output=name, rule="phony", inputs=deps)
-        self.add_build_action(build_action)
+    def add_phony(self, name: str, deps: tuple):
+        self.add_build_action(BuildAction(output=name, rule="phony", inputs=deps))
 
     def write(self):
         for node in self.nodes:
