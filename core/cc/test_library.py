@@ -22,12 +22,12 @@ from ninja_tools import Ninja
 from ninja_syntax import Rule, BuildAction
 
 from cc.library import CompileContext, Compiler, LinkContext, Linker
-from utils import TestContext
+from utils import ContextTest
 
 class TestCompiler(unittest.TestCase):
 
     def setUp(self):
-        self.ninja_context = TestContext("test_dir", "compile_rules_test")
+        self.ninja_context = ContextTest("test_dir", self.id())
 
     def test_clang_is_implicit_dep(self):
         compiler = Compiler()
@@ -55,7 +55,7 @@ class TestCompiler(unittest.TestCase):
 class TestLinker(unittest.TestCase):
 
     def setUp(self):
-        self.ninja_context = TestContext("test_dir", "link_rules_test")
+        self.ninja_context = ContextTest("test_dir", self.id())
 
     def test_clang_is_implicit_dep(self):
         linker = Linker()

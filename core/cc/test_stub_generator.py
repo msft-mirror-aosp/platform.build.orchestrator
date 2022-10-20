@@ -24,12 +24,12 @@ import sys
 from ninja_tools import Ninja
 from ninja_syntax import Variable, BuildAction
 from cc.stub_generator import StubGenerator, GenCcStubsInput, NDKSTUBGEN
-from utils import TestContext
+from utils import ContextTest
 
 class TestStubGenerator(unittest.TestCase):
 
     def setUp(self):
-        self.ninja_context = TestContext("test_dir", "stubgen_test")
+        self.ninja_context = ContextTest("test_dir", self.id())
 
     def _get_stub_inputs(self):
         return GenCcStubsInput("x86", "33", "libfoo.map.txt", "api_levels.json")
@@ -59,4 +59,3 @@ class TestStubGenerator(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
