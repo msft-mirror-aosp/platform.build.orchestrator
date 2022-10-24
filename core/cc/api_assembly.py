@@ -22,10 +22,21 @@ from cc.library import CompileContext, Compiler, LinkContext, Linker
 
 ARCHES = ["arm", "arm64", "x86", "x86_64"]
 
+# Clang triples for cross-compiling for Android
+# TODO: Use a class?
+DEVICE_CLANG_TRIPLES = {
+    "arm": "armv7a-linux-androideabi",
+    "arm64": "aarch64-linux-android",
+    "x86": "i686-linux-android",
+    "x86_64": "x86_64-linux-android",
+}
+
 ASSEMBLE_PHONY_TARGET = "multitree-sdk"
+
 
 class CcApiAssemblyContext(object):
     """Context object for managing global state of CC API Assembly."""
+
     def __init__(self):
         self._stub_generator = StubGenerator()
         self._compiler = Compiler()
@@ -39,11 +50,14 @@ class CcApiAssemblyContext(object):
         and therefore has access to its state."""
         return self.assemble_cc_api_library
 
-    def assemble_cc_api_library(self, context, ninja, build_file, stub_library):
-        staging_dir = context.out.api_library_dir(stub_library.api_surface,
-                stub_library.api_surface_version, stub_library.name)
-        work_dir = context.out.api_library_work_dir(stub_library.api_surface,
-                stub_library.api_surface_version, stub_library.name)
+    def assemble_cc_api_library(self, context, ninja, build_file,
+                                stub_library):
+        staging_dir = context.out.api_library_dir(
+            stub_library.api_surface, stub_library.api_surface_version,
+            stub_library.name)
+        work_dir = context.out.api_library_work_dir(
+            stub_library.api_surface, stub_library.api_surface_version,
+            stub_library.name)
 
         # Generate rules to copy headers.
         api_deps = []
@@ -60,26 +74,30 @@ class CcApiAssemblyContext(object):
                     # e.g. bionic/libc/include/stdio.h --> stdio.h
                     relpath = os.path.relpath(file, root)
                     include = os.path.join(include_dir, relpath)
-                    ninja.add_copy_file(include, os.path.join(contrib.inner_tree.root, file))
+                    ninja.add_copy_file(
+                        include, os.path.join(contrib.inner_tree.root, file))
                     api_deps.append(include)
 
             api = contrib.library_contribution["api"]
             api_out = os.path.join(staging_dir, os.path.basename(api))
-            ninja.add_copy_file(api_out, os.path.join(contrib.inner_tree.root, api))
+            ninja.add_copy_file(api_out,
+                                os.path.join(contrib.inner_tree.root, api))
             api_deps.append(api_out)
 
             # Generate rules to run ndkstubgen.
-            extra_args = self._additional_ndkstubgen_args(stub_library.api_surface)
+            extra_args = self._additional_ndkstubgen_args(
+                stub_library.api_surface)
             for arch in ARCHES:
                 inputs = GenCcStubsInput(
-                        arch = arch,
-                        version = stub_library.api_surface_version,
-                        version_map = self._api_levels_file(context),
-                        api = api_out,
-                        additional_args = extra_args,
+                    arch=arch,
+                    version=stub_library.api_surface_version,
+                    version_map=self._api_levels_file(context),
+                    api=api_out,
+                    additional_args=extra_args,
                 )
                 # Generate stub.c files for each arch.
-                stub_outputs = self._stub_generator.add_stubgen_action(ninja, inputs, work_dir)
+                stub_outputs = self._stub_generator.add_stubgen_action(
+                    ninja, inputs, work_dir)
                 # Compile stub .c files to .o files.
                 # The cflags below have been copied as-is from
                 # build/soong/cc/ndk_library.go.
@@ -97,13 +115,14 @@ class CcApiAssemblyContext(object):
                     "-Wall",
                     "-Werror",
                     "-fno-unwind-tables",
+                    f"-target {DEVICE_CLANG_TRIPLES[arch]}",  # Cross compile for android
                 ])
                 object_file = stub_outputs.stub + ".o"
                 compile_context = CompileContext(
-                    src = stub_outputs.stub,
-                    flags = c_flags,
-                    out = object_file,
-                    frontend = context.tools.clang(),
+                    src=stub_outputs.stub,
+                    flags=c_flags,
+                    out=object_file,
+                    frontend=context.tools.clang(),
                 )
                 self._compiler.compile(ninja, compile_context)
 
@@ -114,14 +133,32 @@ class CcApiAssemblyContext(object):
                     "--shared",
                     f"-Wl,-soname,{soname}",
                     f"-Wl,--version-script,{stub_outputs.version_script}",
+                    f"-target {DEVICE_CLANG_TRIPLES[arch]}",  # Cross compile for android
+                    "-nostdlib",  # Soong uses this option when building using bionic toolchain
                 ])
                 link_context = LinkContext(
-                    objs = [object_file],
-                    flags = ld_flags,
-                    out = output_so,
-                    frontend = context.tools.clang_cxx(),
+                    objs=[object_file],
+                    flags=ld_flags,
+                    out=output_so,
+                    frontend=context.tools.clang_cxx(),
                 )
                 self._linker.link(ninja, link_context)
+
+                # TODO: Short term hack to make the stub library available to
+                # vendor's inner tree.
+                # out/api_surfaces/stub.so is mounted into vendor's inner tree
+                # as platform/api_surfaces/stub.so. Create a phony edge so that
+                # vendor binaries can link against the stub via the dep chain
+                # vendor/out/vendor_bin ->
+                # vendor/platform/api_surfaces/stub.so ->
+                # out/api_surfaces/stub.so
+                src_path_in_vendor_inner_tree = output_so.replace(
+                    context.out.api_surfaces_dir(),
+                    "vendor/platform/api_surfaces")
+                ninja.add_global_phony(src_path_in_vendor_inner_tree,
+                                       [output_so])
+                # Assemble the header files in out before compiling the rdeps
+                ninja.add_global_phony(src_path_in_vendor_inner_tree, api_deps)
 
             # TODO: Generate Android.bp files.
 
@@ -130,11 +167,12 @@ class CcApiAssemblyContext(object):
             self._add_api_levels_file(context, ninja)
             self._api_levels_file_added = True
 
-
         # Generate phony rule to build the library.
         # TODO: This name probably conflictgs with something.
-        phony = "-".join([stub_library.api_surface, str(stub_library.api_surface_version),
-                          stub_library.name])
+        phony = "-".join([
+            stub_library.api_surface,
+            str(stub_library.api_surface_version), stub_library.name
+        ])
         ninja.add_phony(phony, api_deps)
         # Add a global phony to assemnble all apis
         ninja.add_global_phony(ASSEMBLE_PHONY_TARGET, [phony])
@@ -165,19 +203,19 @@ class CcApiAssemblyContext(object):
             "J": 16,
             "J-MR1": 17,
             "J-MR2": 18,
-            "K":     19,
-            "L":     21,
+            "K": 19,
+            "L": 21,
             "L-MR1": 22,
-            "M":     23,
-            "N":     24,
+            "M": 23,
+            "N": 24,
             "N-MR1": 25,
-            "O":     26,
+            "O": 26,
             "O-MR1": 27,
-            "P":     28,
-            "Q":     29,
-            "R":     30,
-            "S":     31,
-            "S-V2":  32,
+            "P": 28,
+            "Q": 29,
+            "R": 30,
+            "S": 31,
+            "S-V2": 32,
             "Tiramisu": 33,
         }
         for index, codename in enumerate(active_codenames):
