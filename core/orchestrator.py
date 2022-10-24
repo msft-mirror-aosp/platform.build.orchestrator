@@ -40,6 +40,7 @@ API_DOMAIN_MODULE = "module"
 
 
 class Orchestrator():
+
     def __init__(self, argv):
         """Initialize the object."""
         self.argv = argv
@@ -158,12 +159,12 @@ class Orchestrator():
         # platform/apisurfaces, and be mandatory.
         # TODO: Does the outer tree (orchestrator) need to have this mapped into
         # nsjail?
-        jail_cfg.add_mountpt(
-            src=out.api_surfaces_dir(base=out.Base.ORIGIN),
-            dst=os.path.join(root, "platform", "api_surfaces"),
-            is_bind=True,
-            rw=False,
-            mandatory=False)
+        jail_cfg.add_mountpt(src=out.api_surfaces_dir(base=out.Base.ORIGIN),
+                             dst=os.path.join(root, "platform",
+                                              "api_surfaces"),
+                             is_bind=True,
+                             rw=False,
+                             mandatory=False)
 
         for tree in self.inner_trees.trees.values():
             jail_cfg.add_nsjail(tree.meld_config)
@@ -201,6 +202,18 @@ class Orchestrator():
         # TODO: determine the targets from the lunch command and mcombo files.
         targets = self.opts.targets or ["staging", "system/system"]
         print("Running ninja...")
+
+        # TODO: Handle environment variables of each inner build in combined
+        # execution.
+        # soong_ui wraps the primary ninja execution with additinal
+        # environment variables.
+        # build/soong/ui/build/config.go#NewConfig
+        # Several ninja actions expect these environment variables to  be set.
+        # A plain merge of environment variables across inner trees will likely
+        # not work since each inner build might have varying settings (e.g. different JDK
+        # toolchains.)
+        # For now, set `OUT_DIR` which is inner tree agnostic.
+        jail_cfg.add_envar(name="OUT_DIR", value=utils.choose_out_dir())
         ninja_runner.run_ninja(context, jail_cfg, targets)
 
         # Success!
