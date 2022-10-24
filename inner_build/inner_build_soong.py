@@ -199,7 +199,7 @@ class ApiExporterBazel(object):
         output_user_root = self._output_user_root()
         cmd = [
             # Android's Bazel-entrypoint. Contains configs like the JDK to use.
-            "build/bazel/bazel.sh",
+            "build/bazel/bin/bazel",
             subcmd,
             # Run Bazel on the synthetic api_bp2build workspace.
             "--config=api_bp2build",
