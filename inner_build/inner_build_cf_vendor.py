@@ -34,7 +34,6 @@ class InnerBuildCfVendor(InnerBuildSoong):
                            SKIP_VNDK_VARIANTS_CHECK="true"):
             super().analyze(args)
 
-
 def main(argv: List):
     return InnerBuildCfVendor().Run(argv)
 
