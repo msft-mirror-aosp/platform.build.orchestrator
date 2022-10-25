@@ -137,12 +137,14 @@ class BuildAction(Node):
     """
 
     def __init__(self,
+                 *args,
                  rule: str,
                  output: list[str] = None,
                  inputs: list[str] = None,
                  implicits: list[str] = None,
                  order_only: list[str] = None,
                  variables: list[tuple[(str, str)]] = ()):
+        assert not args, "parameters must be passed as keywords"
         self.output = self._as_list(output)
         self.rule = rule
         self.inputs = self._as_list(inputs)
