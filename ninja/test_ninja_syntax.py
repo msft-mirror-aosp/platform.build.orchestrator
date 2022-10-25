@@ -100,6 +100,11 @@ class TestBuildAction(unittest.TestCase):
         with self.assertRaises(BuildActionException):
             next(build.stream())
 
+    def test_nonkeyword_inputs(self):
+        """Verify that non-keyword args are rejected."""
+        with self.assertRaises(TypeError):
+            BuildAction("out")
+
     def test_inputs(self):
         build = BuildAction(output="out",
                             rule="cat",
