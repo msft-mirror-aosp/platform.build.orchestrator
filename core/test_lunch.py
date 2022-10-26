@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import lunch
@@ -27,7 +26,7 @@ test_lunch_context = lunch.LunchContext("test/configs", ["build"])
 class TestStringMethods(unittest.TestCase):
 
     def test_find_dirs(self):
-        self.assertEqual([x for x in lunch.find_dirs("test/configs", "multitree_combos")], [
+        self.assertEqual(list( lunch.find_dirs("test/configs", "multitree_combos")), [
                     "test/configs/build/orchestrator/multitree_combos",
                     "test/configs/device/aa/bb/multitree_combos",
                     "test/configs/vendor/aa/bb/multitree_combos"])
@@ -39,7 +38,7 @@ class TestStringMethods(unittest.TestCase):
                    "test/configs/device/aa/bb/multitree_combos/v.mcombo")
 
     def test_find_config_dirs(self):
-        self.assertEqual([x for x in lunch.find_config_dirs(test_lunch_context)], [
+        self.assertEqual(list( lunch.find_config_dirs(test_lunch_context)), [
                     "test/configs/build/orchestrator/multitree_combos",
                     "test/configs/vendor/aa/bb/multitree_combos",
                     "test/configs/device/aa/bb/multitree_combos"])
