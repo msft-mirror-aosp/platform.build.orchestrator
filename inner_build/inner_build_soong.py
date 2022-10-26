@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import shutil
 import subprocess
@@ -25,6 +26,7 @@ from find_api_packages import ApiPackageFinder
 
 
 class InnerBuildSoong(common.Commands):
+
     def export_api_contributions(self, args):
         # Bazel is used to export API contributions even when the primary build
         # system is Soong.
@@ -39,14 +41,40 @@ class InnerBuildSoong(common.Commands):
             "build/soong/soong_ui.bash", "--build-mode",
             f"--dir={args.inner_tree}", "-all-modules", "nothing"
         ]
+
         p = subprocess.run(cmd, shell=False, check=False)
         if p.returncode:
-            sys.stderr.write(
-                f"analyze: {cmd} failed with error message:\n"
-                f"{p.stderr.decode() if p.stderr else ''}"
-            )
+            sys.stderr.write(f"analyze: {cmd} failed with error message:\n"
+                             f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
-        return p
+
+        # TODO: temp fix for duplicate pool error.
+        # Soong uses a ninja pool called `highmem_pool` to have stricter control
+        # on the execution of certain build actions.
+        # When outer tree subninja's multiple inner_build ninja files, we get
+        # a "duplicate pool" error.
+        # Remove the pool from every inner ninja file, and create the pool in the
+        # outer ninja file instead
+        # Also, the orchestrator expects the file to exist at `inner_tree.ninja`
+        product = os.environ.get("TARGET_PRODUCT", "aosp_arm")  # default
+        src_path = os.path.join(args.out_dir, f"combined-{product}.ninja")
+        dst_path = os.path.join(args.out_dir, f"inner_tree.ninja")
+        with open(src_path, "r", encoding='iso-8859-1') as src:
+            # the combined files is small enough, read everything into memory
+            lines = src.readlines()
+            lines_without_pool = [
+                line for line in lines
+                if "pool" not in line and "depth" not in line
+            ]
+            with open(dst_path, "w", encoding='iso-8859-1') as dst:
+                dst.writelines(lines_without_pool)
+
+        # TODO: Create an empty file for now. orchestrator will subninja the
+        # primary ninja file only if build_targets.json is not empty.
+        with open(os.path.join(args.out_dir, "build_targets.json"),
+                  "w",
+                  encoding='iso-8859-1') as f:
+            f.write(json.dumps({"staging": []}, indent=2))
 
 
 class ApiMetadataFile(object):
@@ -66,7 +94,8 @@ class ApiMetadataFile(object):
         # e.g. cquery returns bazel-out/android_target-fastbuild/bin/... which
         # does not exist.
         # replace with <symlink_prefix>/bin/... which does exist.
-        cleaned_path = self.path.replace("bazel-out/android_target-fastbuild/", self.bazel_symlink_prefix)
+        cleaned_path = self.path.replace("bazel-out/android_target-fastbuild/",
+                                         self.bazel_symlink_prefix)
         return os.path.join(self.inner_tree, cleaned_path)
 
     def name(self) -> str:
@@ -108,10 +137,8 @@ class ApiExporterBazel(object):
 
     def _find_api_domain_contribution_targets(self) -> List[str]:
         """Return the label of the Bazel contribution targets to build"""
-        print(
-            f"Finding api_domain_contribution Bazel BUILD targets "
-            f"in tree rooted at {self.inner_tree}"
-        )
+        print(f"Finding api_domain_contribution Bazel BUILD targets "
+              f"in tree rooted at {self.inner_tree}")
         finder = ApiPackageFinder(inner_tree_root=self.inner_tree)
         contribution_targets = []
         for api_domain in self.api_domains:
@@ -120,35 +147,31 @@ class ApiExporterBazel(object):
                 contribution_targets.append(label)
         return contribution_targets
 
-    def _build_api_domain_contribution_targets(self,
-                                               contribution_targets: List[str]
-                                               ) -> List[ApiMetadataFile]:
+    def _build_api_domain_contribution_targets(
+            self, contribution_targets: List[str]) -> List[ApiMetadataFile]:
         """Build the contribution targets
 
         Return:
             the filepath of the generated files.
         """
-        print(
-            f"Running Bazel build on api_domain_contribution targets in "
-            f"tree rooted at {self.inner_tree}"
-        )
+        print(f"Running Bazel build on api_domain_contribution targets in "
+              f"tree rooted at {self.inner_tree}")
         if not contribution_targets:
             return None
-        self._run_bazel_cmd(subcmd="build",
-                            targets=contribution_targets,
-                            capture_output=False, # log everything to terminal
-                            )
-        print(
-            f"Running Bazel cquery on api_domain_contribution targets "
-            f"in tree rooted at {self.inner_tree}"
+        self._run_bazel_cmd(
+            subcmd="build",
+            targets=contribution_targets,
+            capture_output=False,  # log everything to terminal
         )
+        print(f"Running Bazel cquery on api_domain_contribution targets "
+              f"in tree rooted at {self.inner_tree}")
         proc = self._run_bazel_cmd(
             subcmd="cquery",
             targets=contribution_targets,
             subcmd_options=[
                 "--output=files",
             ],
-            capture_output=True, # parse cquery result from stdout
+            capture_output=True,  # parse cquery result from stdout
         )
         # The cquery response contains a blank line at the end.
         # Remove this before creating the filepaths array.
@@ -164,10 +187,8 @@ class ApiExporterBazel(object):
             self, files: List[ApiMetadataFile]):
         """Copies the metadata files to a well-known location"""
         target_dir = os.path.join(self.out_dir, "api_contributions")
-        print(
-            f"Copying API contribution metadata files of tree rooted at "
-            f"{self.inner_tree} to {target_dir}"
-        )
+        print(f"Copying API contribution metadata files of tree rooted at "
+              f"{self.inner_tree} to {target_dir}")
         # Create the directory if it does not exist, even if that inner_tree has
         # no contributions.
         if not os.path.exists(target_dir):
@@ -190,7 +211,7 @@ class ApiExporterBazel(object):
     def _run_bazel_cmd(self,
                        subcmd: str,
                        targets: List[str],
-                       subcmd_options: Tuple[str] =(),
+                       subcmd_options: Tuple[str] = (),
                        **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
@@ -199,12 +220,12 @@ class ApiExporterBazel(object):
         output_user_root = self._output_user_root()
         cmd = [
             # Android's Bazel-entrypoint. Contains configs like the JDK to use.
-            "build/bazel/bazel.sh",
+            "build/bazel/bin/bazel",
             subcmd,
             # Run Bazel on the synthetic api_bp2build workspace.
             "--config=api_bp2build",
             "--config=android",
-            f"--symlink_prefix={output_user_root}", # Use prefix hack to create the convenience symlinks in out/
+            f"--symlink_prefix={output_user_root}",  # Use prefix hack to create the convenience symlinks in out/
         ]
         subcmd_options = list(subcmd_options)
         cmd += subcmd_options + targets
