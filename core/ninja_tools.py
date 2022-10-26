@@ -52,8 +52,8 @@ class Ninja(ninja_writer.Writer):
                  f"mkdir -p ${{out_dir}} && {self._acp} -f ${{in}} ${{out}}")
             ]))
         self.add_build_action(
-            BuildAction(copy_to,
-                        "copy_file",
+            BuildAction(output=copy_to,
+                        rule="copy_file",
                         inputs=[copy_from],
                         implicits=[self._acp],
                         variables=[("out_dir", os.path.dirname(copy_to))]))
