@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 class ApiDomain(object):
     def __init__(self, name, tree, product):
         # Product will be null for modules
@@ -22,7 +23,6 @@ class ApiDomain(object):
         self.product = product
 
     def __str__(self):
-        return "ApiDomain(name=\"%s\" tree.root=\"%s\" product=%s)" % (
-                self.name, self.tree.root,
-                "None" if self.product is None else "\"%s\"" % self.product)
-
+        product = "None" if self.product is None else f'"{self.product}"'
+        return (f'ApiDomain(name="{self.name}" tree.root="{self.tree.root}"'
+                f' product={product})')
