@@ -169,8 +169,7 @@ class Nsjail(object):
                     dst="/etc/alternatives",
                     is_bind=True,
                     rw=False,
-                    mandatory=False
-                    ),
+                    mandatory=False),
 
             # TODO: we may need to use something other than tmpfs for this,
             # because of some tests, etc.
