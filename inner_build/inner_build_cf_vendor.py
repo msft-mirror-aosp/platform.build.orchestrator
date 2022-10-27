@@ -20,19 +20,32 @@ from typing import List
 import common
 from inner_build_soong import InnerBuildSoong
 
+# TODO: Once we are publishing a lightweight API surfaces tree, we
+# should not need to set the environment variables.
+_ENV_VARS = {
+    "ALLOW_MISSING_DEPENDENCIES": "true",
+    "SKIP_VNDK_VARIANTS_CHECK": "true",
+}
+
 
 class InnerBuildCfVendor(InnerBuildSoong):
     """Class to override functions for cf_vendor branch."""
 
     # TODO: Once there are no overrides here, this file should be removed.
 
+    def export_api_contributions(self, args: List):
+        """Export API contributions."""
+
+        # Using the same set of env variables used by `analyze` ensures
+        # that we do not incur the penalty of retriggering Soong.
+        with common.setenv(**_ENV_VARS):
+            super().export_api_contributions(args)
+
     def analyze(self, args: List):
         """Analyze the tree."""
-        # TODO: Once we are publishing a lightweight API surfaces tree, we
-        # should not need to set the environment variables.
-        with common.setenv(ALLOW_MISSING_DEPENDENCIES="true",
-                           SKIP_VNDK_VARIANTS_CHECK="true"):
+        with common.setenv(**_ENV_VARS):
             super().analyze(args)
+
 
 def main(argv: List):
     return InnerBuildCfVendor().Run(argv)
