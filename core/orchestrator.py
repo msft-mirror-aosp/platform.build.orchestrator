@@ -40,7 +40,6 @@ API_DOMAIN_MODULE = "module"
 
 
 class Orchestrator():
-
     def __init__(self, argv):
         """Initialize the object."""
         self.argv = argv
@@ -159,7 +158,8 @@ class Orchestrator():
         # platform/apisurfaces, and be mandatory.
         # TODO: Does the outer tree (orchestrator) need to have this mapped into
         # nsjail?
-        jail_cfg.add_mountpt(src=out.api_surfaces_dir(base=out.Base.ORIGIN),
+        jail_cfg.add_mountpt(src=out.api_surfaces_dir(base=out.Base.ORIGIN,
+                                                      abspath=True),
                              dst=os.path.join(root, "platform",
                                               "api_surfaces"),
                              is_bind=True,
@@ -210,8 +210,8 @@ class Orchestrator():
         # build/soong/ui/build/config.go#NewConfig
         # Several ninja actions expect these environment variables to  be set.
         # A plain merge of environment variables across inner trees will likely
-        # not work since each inner build might have varying settings (e.g. different JDK
-        # toolchains.)
+        # not work since each inner build might have varying settings (e.g.
+        # different JDK toolchains.)
         # For now, set `OUT_DIR` which is inner tree agnostic.
         jail_cfg.add_envar(name="OUT_DIR", value=utils.choose_out_dir())
         ninja_runner.run_ninja(context, jail_cfg, targets)
