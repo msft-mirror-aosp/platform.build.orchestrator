@@ -27,14 +27,24 @@ class TestMountPt(unittest.TestCase):
         self.assertRaises(AssertionError, nsjail.MountPt, 0)
 
     def test_args(self):
-        # Test string values, and then test both True and False cases of
-        # booleans.
-        for name in ("src", "prefix_src_env", "src_content", "dst",
-                     "prefix_dst_env", "fstype", "options"):
+        """Test arguments."""
+        # Test string values.  src and dst must be absolute paths.
+        for name in "src", "dst":
+            with self.subTest(arg=name):
+                path = os.path.abspath(name)
+                mnt = nsjail.MountPt(**{name: path})
+                self.assertEqual(str(mnt),
+                                 f'mount {{\n  {name}: "{path}"\n}}\n\n')
+
+        # The rest of the string arguments do not care as much.
+        for name in ("prefix_src_env", "src_content", "prefix_dst_env",
+                     "fstype", "options"):
             with self.subTest(arg=name):
                 mnt = nsjail.MountPt(**{name: name})
                 self.assertEqual(str(mnt),
                                  f'mount {{\n  {name}: "{name}"\n}}\n\n')
+
+        # Test the booleans with both True and False.
         for name in ("is_bind", "rw", "is_dir", "mandatory", "is_symlink",
                      "nosuid", "nodev", "noexec"):
             with self.subTest(arg=name, value=True):
@@ -44,6 +54,13 @@ class TestMountPt(unittest.TestCase):
                 mnt = nsjail.MountPt(**{name: False})
                 self.assertEqual(str(mnt),
                                  f'mount {{\n  {name}: false\n}}\n\n')
+
+    def test_absolute_paths(self):
+        """Test that src and dst must be absolute paths."""
+        with self.assertRaises(AssertionError):
+            nsjail.MountPt(src="src")
+        with self.assertRaises(AssertionError):
+            nsjail.MountPt(dst="dst")
 
 
 class TestNsjail(unittest.TestCase):
