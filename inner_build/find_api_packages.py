@@ -114,12 +114,14 @@ class ApiPackageFinder:
 
     Example api_packages.json
     ```
-    {
-        "api_domain": "system",
-        "api_package": "//build/orchestrator/apis",
-        "api_target": "system",
-        "is_apex": false
-    }
+    [
+        {
+            "api_domain": "system",
+            "api_package": "//build/orchestrator/apis",
+            "api_target": "system",
+            "is_apex": false
+        }
+    ]
     ```
 
     The search is restricted to $INNER_TREE_SEARCH_DIRS
@@ -144,7 +146,7 @@ class ApiPackageFinder:
             for packages_file in self.finder.find(
                     path=search_path, search_depth=self.search_depth):
                 api_contributions = read(packages_file)
-                self._cache.append(api_contributions)
+                self._cache.extend(api_contributions)
 
     def _find_api_label(self, api_domain_filter) -> list[BazelLabel]:
         # Compare to None and not []. The latter value is possible if a tree has
