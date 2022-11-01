@@ -36,7 +36,6 @@ api_domain {
         "liblog.ndk",
         "libm.ndk",
         "libnativewindow.ndk",
-        "libneuralnetworks.ndk",
         "libOpenMAXAL.ndk",
         "libOpenSLES.ndk",
         "libstdc++.ndk",
@@ -48,22 +47,15 @@ api_domain {
         "heapprofd_api_noop",
         "heapprofd_client_api",
         "libaaudio",
-        //"libadb_pairing_auth",
-        //"libadb_pairing_connection",
-        //"libadb_pairing_server",
-        //"libadbconnection_client",
         "libadbd_auth",
         "libadbd_fs",
         "libandroid",
         "libandroid_net",
-        "libandroidicu",
-        //"libandroidio",
         "libartpalette-system",
         "libbinder_ndk",
-        //"libbinder_rpc_unstable",
+        "libbinder_rpc_unstable",
         "libc",
         "libcgrouprc",
-        //"libdexfile",
         "libdl",
         "libdl_android",
         "libft2",
@@ -71,28 +63,81 @@ api_domain {
         "libGLESv1_CM",
         "libGLESv2",
         "libGLESv3",
-        "libicu",
         "libincident",
         "liblog",
         "libm",
-        //"libmediametrics",
+        "libmediametrics",
         "libmediandk",
-        //"libnativebridge",
-        "libnativehelper",
-        //"libnativeloader",
         "libnativewindow",
-        "libnetd_resolv",
-        "libnetd_updatable",
-        "libneuralnetworks",
-        //"libneuralnetworks_packageinfo",
+        "libneuralnetworks_packageinfo",
         "libRS",
         "libselinux",
-        //"libsigchain",
-        "libstatspull",
-        "libstatssocket",
         "libsync",
         "libvndksupport",
         "libvulkan",
         "libz",
+    ],
+}
+
+// All the apex api_domains have been suffixed with .contribution for now
+// This prevents a name-collision with the actual apex
+// Long term, the implementation of these two module types should be merged
+api_domain {
+    name: "com.android.adbd.contribution",
+    cc_api_contributions: [
+        "libadb_pairing_auth",
+        "libadb_pairing_connection",
+        "libadb_pairing_server",
+        "libadbconnection_client",
+    ],
+}
+
+api_domain {
+    name: "com.android.art.contribution",
+    cc_api_contributions: [
+        "libandroidio",
+        "libdexfile",
+        "libnativebridge",
+        "libnativehelper",
+        "libnativeloader",
+        "libsigchain",
+    ],
+}
+
+api_domain {
+    name: "com.android.i18n.contribution",
+    cc_api_contributions: [
+        "libandroidicu",
+        "libicu",
+    ],
+}
+
+api_domain {
+    name: "com.android.neuralnetworks.contribution",
+    cc_api_contributions: [
+        "libneuralnetworks.ndk",
+        "libneuralnetworks",
+    ],
+}
+
+api_domain {
+    name: "com.android.os.statsd.contribution",
+    cc_api_contributions: [
+        "libstatspull",
+        "libstatssocket",
+    ],
+}
+
+api_domain {
+    name: "com.android.resolv.contribution",
+    cc_api_contributions: [
+        "libnetd_resolv",
+    ],
+}
+
+api_domain {
+    name: "com.android.tethering.contribution",
+    cc_api_contributions: [
+        "libnetd_updatable",
     ],
 }

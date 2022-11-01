@@ -115,9 +115,9 @@ class TestApiPackageFinder(unittest.TestCase):
             return ["some_file.json"] if "packages/modules" in path else []
 
         find_mock.side_effect = _mock_fs
-        read_mock.return_value = ContributionData(
+        read_mock.return_value = [ContributionData(
             "com.android.foo",
-            BazelLabel("//packages/modules/foo", "contributions"))
+            BazelLabel("//packages/modules/foo", "contributions"))]
         api_package_finder = ApiPackageFinder("mock_inner_tree")
         self.assertEqual(None,
                          api_package_finder.find_api_label_string("system"))
@@ -135,8 +135,8 @@ class TestApiPackageFinder(unittest.TestCase):
             "com.android.foo",
             BazelLabel("//packages/modules/foo_other", "contributions"))
         mock_data = {
-            "first.json": first_contribution_data,
-            "second.json": second_contribution_data,
+            "first.json": [first_contribution_data],
+            "second.json": [second_contribution_data],
         }
 
         find_mock.side_effect = self._mock_fs(mock_data)
@@ -155,8 +155,8 @@ class TestApiPackageFinder(unittest.TestCase):
             "com.android.bar",
             BazelLabel("//packages/modules/bar", "contributions"))
         mock_data = {
-            "foo.json": foo_contribution_data,
-            "bar.json": bar_contribution_data,
+            "foo.json": [foo_contribution_data],
+            "bar.json": [bar_contribution_data],
         }
 
         find_mock.side_effect = self._mock_fs(mock_data)
