@@ -108,6 +108,14 @@ class ApiMetadataFile(object):
             otherpath) < os.path.getmtime(self.fullpath())
 
 
+# ApiPackageFinder filters for special chars in .mcombo files
+_MCOMBO_WILDCARD_FILTERS = {
+    "*": lambda x: x.is_apex,
+    # TODO: Support more wildcards if necessary (e.g. vendor apex, google
+    # variants etc.)
+}
+
+
 class ApiExporterBazel(object):
     """Generate API surface metadata files into a well-known directory
 
@@ -142,9 +150,12 @@ class ApiExporterBazel(object):
         finder = ApiPackageFinder(inner_tree_root=self.inner_tree)
         contribution_targets = []
         for api_domain in self.api_domains:
-            label = finder.find_api_label_string(api_domain)
-            if label is not None:
-                contribution_targets.append(label)
+            default_name_filter = lambda x: x.api_domain == api_domain
+            api_domain_filter = _MCOMBO_WILDCARD_FILTERS.get(
+                api_domain, default_name_filter)
+            labels = finder.find_api_label_string_using_filter(
+                api_domain_filter)
+            contribution_targets.extend(labels)
         return contribution_targets
 
     def _build_api_domain_contribution_targets(
@@ -163,16 +174,21 @@ class ApiExporterBazel(object):
             targets=contribution_targets,
             capture_output=False,  # log everything to terminal
         )
-        print(f"Running Bazel cquery on api_domain_contribution targets "
+        print("Running Bazel cquery on api_domain_contribution targets "
               f"in tree rooted at {self.inner_tree}")
         proc = self._run_bazel_cmd(
             subcmd="cquery",
-            targets=contribution_targets,
+            # cquery raises an error if multiple targets are provided.
+            # Create a union expression instead.
+            targets=[" union ".join(contribution_targets)],
             subcmd_options=[
                 "--output=files",
             ],
             capture_output=True,  # parse cquery result from stdout
-        )
+            # we just ran bp2build. We can run it in again,
+            # but this adds time.
+            run_bp2build=False,
+           )
         # The cquery response contains a blank line at the end.
         # Remove this before creating the filepaths array.
         filepaths = proc.stdout.decode().rstrip().split("\n")
@@ -212,11 +228,13 @@ class ApiExporterBazel(object):
                        subcmd: str,
                        targets: List[str],
                        subcmd_options: Tuple[str] = (),
+                       run_bp2build=True,
                        **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
         # b-equivalent entrypoint is available.
-        self._run_bp2build_cmd()
+        if run_bp2build:
+            self._run_bp2build_cmd()
         output_user_root = self._output_user_root()
         cmd = [
             # Android's Bazel-entrypoint. Contains configs like the JDK to use.

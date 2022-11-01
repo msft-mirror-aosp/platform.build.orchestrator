@@ -17,8 +17,6 @@
 the Fully Qualified Bazel label of API domain contributions to API surfaces.
 """
 
-from collections import namedtuple
-
 import json
 import os
 
@@ -33,9 +31,8 @@ DEFAULT_API_TARGET = "contributions"
 # Directories inside inner_tree that will be searched for api_packages.json
 # This pruning improves the speed of the API export process
 INNER_TREE_SEARCH_DIRS = [
-    (
-        "build", "orchestrator"
-    ),  # TODO: Remove once build/orchestrator stops contributing to system.
+    ("build", "orchestrator"
+     ),  # TODO: Remove once build/orchestrator stops contributing to system.
     ("frameworks", "base"),
     ("packages", "modules")
 ]
@@ -56,15 +53,27 @@ class BazelLabel:
 
 
 class ApiPackageDecodeException(Exception):
+
     def __init__(self, filepath: str, msg: str):
         self.filepath = filepath
         msg = f"Found malformed api_packages.json file at {filepath}: " + msg
         super().__init__(msg)
 
 
-ContributionData = namedtuple("ContributionData",
-                              ("api_domain", "api_contribution_bazel_label"))
+class ContributionData:
+    """Class to represent metadata of API contributions in api_packages.json."""
 
+    def __init__(self, api_domain, api_bazel_label, is_apex=False):
+        self.api_domain = api_domain
+        self.api_contribution_bazel_label = api_bazel_label
+        self.is_apex = is_apex
+
+    def __repr__(self):
+        props = [f"api_domain={self.api_domain}"]
+        props.append(f"api_contribution_bazel_label={self.api_contribution_bazel_label}")
+        props.append(f"is_apex={self.is_apex}")
+        props_joined = ", ".join(props)
+        return f"ContributionData({props_joined})"
 
 def read(filepath: str) -> ContributionData:
     """Deserialize the contents of the json file at <filepath>
@@ -78,6 +87,7 @@ def read(filepath: str) -> ContributionData:
         domain = json_contents.get("api_domain")
         package = json_contents.get("api_package")
         target = json_contents.get("api_target", "") or DEFAULT_API_TARGET
+        is_apex = json_contents.get("is_apex", False)
         if not domain:
             raise ApiPackageDecodeException(
                 filepath,
@@ -87,7 +97,8 @@ def read(filepath: str) -> ContributionData:
                 filepath,
                 "api_package is a required field in api_packages.json")
         return ContributionData(domain,
-                                BazelLabel(package=package, target=target))
+                                BazelLabel(package=package, target=target),
+                                is_apex=is_apex)
 
     with open(filepath, encoding='iso-8859-1') as f:
         try:
@@ -103,11 +114,14 @@ class ApiPackageFinder:
 
     Example api_packages.json
     ```
-    {
-        "api_domain": "system",
-        "api_package": "//build/orchestrator/apis",
-        "api_target": "system"
-    }
+    [
+        {
+            "api_domain": "system",
+            "api_package": "//build/orchestrator/apis",
+            "api_target": "system",
+            "is_apex": false
+        }
+    ]
     ```
 
     The search is restricted to $INNER_TREE_SEARCH_DIRS
@@ -120,12 +134,10 @@ class ApiPackageFinder:
             filename=API_PACKAGES_FILENAME,
             ignore_paths=[],
         )
-        self._cache = {}
+        self._cache = None
 
-    def _find_api_label(self, api_domain: str) -> BazelLabel:
-        if api_domain in self._cache:
-            return self._cache.get(api_domain)
-
+    def _create_cache(self) -> None:
+        self._cache = []
         search_paths = [
             os.path.join(self.inner_tree_root, *search_dir)
             for search_dir in INNER_TREE_SEARCH_DIRS
@@ -133,17 +145,18 @@ class ApiPackageFinder:
         for search_path in search_paths:
             for packages_file in self.finder.find(
                     path=search_path, search_depth=self.search_depth):
-                # Read values and add them to cache
-                results = read(packages_file)
-                self._cache[
-                    results.api_domain] = results.api_contribution_bazel_label
-                # If an entry is found, stop searching
-                if api_domain in self._cache:
-                    return self._cache.get(api_domain)
+                api_contributions = read(packages_file)
+                self._cache.extend(api_contributions)
 
-        # Do not raise exception if a contribution target could not be found for an api domain
-        # e.g. vendor might not have any api contributions
-        return None
+    def _find_api_label(self, api_domain_filter) -> list[BazelLabel]:
+        # Compare to None and not []. The latter value is possible if a tree has
+        # no API contributoins.
+        if self._cache is None:
+            self._create_cache()
+        return [
+            c.api_contribution_bazel_label for c in self._cache
+            if api_domain_filter(c)
+        ]
 
     def find_api_label_string(self, api_domain: str) -> str:
         """ Return the fully qualified bazel label of the contribution target
@@ -158,10 +171,13 @@ class ApiPackageFinder:
             Bazel label, e.g. //frameworks/base:contribution
             None if a contribution could not be found
         """
-        label = self._find_api_label(api_domain)
-        return label.to_string() if label else None
+        labels = self._find_api_label(lambda x: x.api_domain == api_domain)
+        assert len(
+            labels
+        ) < 2, f"Duplicate contributions found for API domain: {api_domain}"
+        return labels[0].to_string() if labels else None
 
-    def find_api_package(self, api_domain_name: str) -> str:
+    def find_api_package(self, api_domain: str) -> str:
         """ Return the Bazel package of the contribution target
 
         Parameters:
@@ -174,5 +190,27 @@ class ApiPackageFinder:
             Bazel label, e.g. //frameworks/base
             None if a contribution could not be found
         """
-        label = self._find_api_label(api_domain_name)
-        return label.package if label else None
+        labels = self._find_api_label(lambda x: x.api_domain == api_domain)
+        assert len(
+            labels
+        ) < 2, f"Duplicate contributions found for API domain: {api_domain}"
+        return labels[0].package if label else None
+
+    def find_api_label_string_using_filter(self,
+                                           api_domain_filter: callable) -> str:
+        """ Return the Bazel label of the contributing targets
+        that match a search filter.
+
+        Parameters:
+            api_domain_filter: A callback function. The first arg to the function
+            is ContributionData
+
+        Raises:
+            ApiPackageDecodeException: If a malformed api_packages.json is found during search
+
+        Returns:
+            List of Bazel labels, e.g. [//frameworks/base:contribution, //packages/myapex:contribution]
+            None if a contribution could not be found
+        """
+        labels = self._find_api_label(api_domain_filter)
+        return [label.to_string() for label in labels]
