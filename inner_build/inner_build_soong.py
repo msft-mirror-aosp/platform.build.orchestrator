@@ -108,6 +108,14 @@ class ApiMetadataFile(object):
             otherpath) < os.path.getmtime(self.fullpath())
 
 
+# ApiPackageFinder filters for special chars in .mcombo files
+_MCOMBO_WILDCARD_FILTERS = {
+    "*": lambda x: x.is_apex,
+    # TODO: Support more wildcards if necessary (e.g. vendor apex, google
+    # variants etc.)
+}
+
+
 class ApiExporterBazel(object):
     """Generate API surface metadata files into a well-known directory
 
@@ -142,9 +150,12 @@ class ApiExporterBazel(object):
         finder = ApiPackageFinder(inner_tree_root=self.inner_tree)
         contribution_targets = []
         for api_domain in self.api_domains:
-            label = finder.find_api_label_string(api_domain)
-            if label is not None:
-                contribution_targets.append(label)
+            default_name_filter = lambda x: x.api_domain == api_domain
+            api_domain_filter = _MCOMBO_WILDCARD_FILTERS.get(
+                api_domain, default_name_filter)
+            labels = finder.find_api_label_string_using_filter(
+                api_domain_filter)
+            contribution_targets.extend(labels)
         return contribution_targets
 
     def _build_api_domain_contribution_targets(
