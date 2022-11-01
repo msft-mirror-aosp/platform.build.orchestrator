@@ -174,16 +174,21 @@ class ApiExporterBazel(object):
             targets=contribution_targets,
             capture_output=False,  # log everything to terminal
         )
-        print(f"Running Bazel cquery on api_domain_contribution targets "
+        print("Running Bazel cquery on api_domain_contribution targets "
               f"in tree rooted at {self.inner_tree}")
         proc = self._run_bazel_cmd(
             subcmd="cquery",
-            targets=contribution_targets,
+            # cquery raises an error if multiple targets are provided.
+            # Create a union expression instead.
+            targets=[" union ".join(contribution_targets)],
             subcmd_options=[
                 "--output=files",
             ],
             capture_output=True,  # parse cquery result from stdout
-        )
+            # we just ran bp2build. We can run it in again,
+            # but this adds time.
+            run_bp2build=False,
+           )
         # The cquery response contains a blank line at the end.
         # Remove this before creating the filepaths array.
         filepaths = proc.stdout.decode().rstrip().split("\n")
@@ -223,11 +228,13 @@ class ApiExporterBazel(object):
                        subcmd: str,
                        targets: List[str],
                        subcmd_options: Tuple[str] = (),
+                       run_bp2build=True,
                        **kwargs) -> subprocess.CompletedProcess:
         """Runs Bazel subcmd with Multi-tree specific configuration"""
         # TODO (b/244766775): Replace the two discrete cmds once the new
         # b-equivalent entrypoint is available.
-        self._run_bp2build_cmd()
+        if run_bp2build:
+            self._run_bp2build_cmd()
         output_user_root = self._output_user_root()
         cmd = [
             # Android's Bazel-entrypoint. Contains configs like the JDK to use.
