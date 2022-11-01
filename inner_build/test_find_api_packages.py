@@ -24,6 +24,7 @@ from finder import FileFinder
 
 
 class TestBazelLabel(unittest.TestCase):
+
     def test_label_to_string(self):
         label = BazelLabel(package="//build/bazel", target="mytarget")
         self.assertEqual("//build/bazel:mytarget", label.to_string())
@@ -38,6 +39,7 @@ class TestBazelLabel(unittest.TestCase):
 
 
 class TestApiPackageReadUtils(unittest.TestCase):
+
     def test_read_empty_file(self):
         test_data = ""
         with patch("builtins.open", mock_open(read_data=test_data)):
@@ -88,6 +90,13 @@ class TestApiPackageReadUtils(unittest.TestCase):
 
 
 class TestApiPackageFinder(unittest.TestCase):
+
+    def _mock_fs(self, mock_data):
+        # Create a mock fs for finder.find
+        # The mock fs contains files in packages/modules.
+        return lambda path, search_depth: list(mock_data.keys(
+        )) if "packages/modules" in path else []
+
     @patch.object(FileFinder, "find")
     def test_exception_if_api_package_file_is_missing(self, find_mock):
         find_mock.return_value = []  # no files found
@@ -97,10 +106,15 @@ class TestApiPackageFinder(unittest.TestCase):
 
     @patch("find_api_packages.read")
     @patch.object(FileFinder, "find")
-    def test_exception_if_api_domain_not_found(self, find_mock, read_mock):
+    def test_no_exception_if_api_domain_not_found(self, find_mock, read_mock):
         # api_packages.json files exist in the tree, but none of them contain
         # the api_domain we are interested in.
-        find_mock.return_value = ["somefile.json"]
+
+        # Return a mock file from packages/modules.
+        def _mock_fs(path, search_depth):
+            return ["some_file.json"] if "packages/modules" in path else []
+
+        find_mock.side_effect = _mock_fs
         read_mock.return_value = ContributionData(
             "com.android.foo",
             BazelLabel("//packages/modules/foo", "contributions"))
@@ -113,21 +127,49 @@ class TestApiPackageFinder(unittest.TestCase):
 
     @patch("find_api_packages.read")
     @patch.object(FileFinder, "find")
-    def test_first_find_wins(self, find_mock, read_mock):
-        find_mock.return_value = ["first.json", "second.json"]
+    def test_exception_duplicate_entries(self, find_mock, read_mock):
         first_contribution_data = ContributionData(
             "com.android.foo",
             BazelLabel("//packages/modules/foo", "contributions"))
         second_contribution_data = ContributionData(
             "com.android.foo",
             BazelLabel("//packages/modules/foo_other", "contributions"))
-        read_mock.side_effect = [
-            first_contribution_data, second_contribution_data
-        ]
+        mock_data = {
+            "first.json": first_contribution_data,
+            "second.json": second_contribution_data,
+        }
+
+        find_mock.side_effect = self._mock_fs(mock_data)
+        read_mock.side_effect = lambda x: mock_data.get(x)
         api_package_finder = ApiPackageFinder("mock_inner_tree")
-        self.assertEqual(
-            "//packages/modules/foo:contributions",
-            api_package_finder.find_api_label_string("com.android.foo"))
+        with self.assertRaises(AssertionError):
+            api_package_finder.find_api_label_string("com.android.foo")
+
+    @patch("find_api_packages.read")
+    @patch.object(FileFinder, "find")
+    def test_user_provided_filter(self, find_mock, read_mock):
+        foo_contribution_data = ContributionData(
+            "com.android.foo",
+            BazelLabel("//packages/modules/foo", "contributions"))
+        bar_contribution_data = ContributionData(
+            "com.android.bar",
+            BazelLabel("//packages/modules/bar", "contributions"))
+        mock_data = {
+            "foo.json": foo_contribution_data,
+            "bar.json": bar_contribution_data,
+        }
+
+        find_mock.side_effect = self._mock_fs(mock_data)
+        read_mock.side_effect = lambda x: mock_data.get(x)
+        api_package_finder = ApiPackageFinder("mock_inner_tree")
+
+        all_contributions = api_package_finder.find_api_label_string_using_filter(
+            lambda x: True)
+        self.assertEqual(2, len(all_contributions))
+        self.assertEqual("//packages/modules/foo:contributions",
+                         all_contributions[0])
+        self.assertEqual("//packages/modules/bar:contributions",
+                         all_contributions[1])
 
 
 if __name__ == "__main__":
