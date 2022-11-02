@@ -1,5 +1,49 @@
-{
-	"api_domain": "system",
-	"api_package": "//build/orchestrator/apis",
-	"api_target": "system"
-}
+[
+	{
+		"api_domain": "com.android.adbd",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.adbd.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.art",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.art.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.i18n",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.i18n.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.neuralnetworks",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.neuralnetworks.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.os.statsd",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.os.statsd.contribution",
+		"is_apex": true
+	},
+		{
+		"api_domain": "com.android.resolv",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.resolv.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.tethering",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.tethering.contribution",
+		"is_apex": true
+	},
+		{
+		"api_domain": "system",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "system"
+	}
+]
