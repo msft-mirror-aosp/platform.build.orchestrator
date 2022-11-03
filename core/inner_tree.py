@@ -90,6 +90,7 @@ class InnerTreeKey(object):
 
 
 class InnerTree(object):
+
     def __init__(self, context, paths, product, variant):
         """Initialize with the inner tree root (relative to the workspace root)"""
         if not isinstance(paths, list):
@@ -161,13 +162,14 @@ class InnerTree(object):
         # platform/apisurfaces, and be mandatory.
         api_surfaces = self.context.out.api_surfaces_dir(
             base=self.context.out.Base.ORIGIN, abspath=True)
-        if os.path.isdir(api_surfaces):
-            config.add_mountpt(src=api_surfaces,
-                               dst=os.path.join(inner_tree_src_path,
-                                                "platform", "api_surfaces"),
-                               is_bind=True,
-                               rw=False,
-                               mandatory=False)
+        # Always mount api_surfaces dir.
+        os.makedirs(api_surfaces, exist_ok=True)
+        config.add_mountpt(src=api_surfaces,
+                           dst=os.path.join(inner_tree_src_path, "platform",
+                                            "api_surfaces"),
+                           is_bind=True,
+                           rw=False,
+                           mandatory=False)
 
         def _meld_git(shared, src):
             dst = os.path.join(self.root, src[len(shared) + 1:])
@@ -261,6 +263,7 @@ class InnerTree(object):
 
 
 class InnerTrees(object):
+
     def __init__(self, trees, domains):
         self.trees = trees
         self.domains = domains
