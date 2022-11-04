@@ -205,12 +205,16 @@ class Nsjail(object):
 
             # Map the working User ID to a username
             # Some tools like Java need a valid username
-            MountPt(src_content="user:x:999999:65533:user:/tmp:/bin/bash\n",
+            # Inner trees building with Soong also expect the nobody UID to be
+            # available to setup its own nsjail.
+            MountPt(src_content="user:x:999999:65533:user:/tmp:/bin/bash\n"
+                    "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n",
                     dst="/etc/passwd",
                     mandatory=False),
 
             # Define default group
-            MountPt(src_content="group::65533:user\n",
+            MountPt(src_content="group::65533:user\n"
+                    "nogroup::65534:nobody\n",
                     dst="/etc/group",
                     mandatory=False),
 
