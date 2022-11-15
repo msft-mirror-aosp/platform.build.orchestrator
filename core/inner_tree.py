@@ -163,10 +163,14 @@ class InnerTree(object):
         api_surfaces = self.context.out.api_surfaces_dir(
             base=self.context.out.Base.ORIGIN, abspath=True)
         # Always mount api_surfaces dir.
+        # The mount point is out/api_surfaces -> <inner_tree>/out/api_surfaces
+        # soong_finder will be speciall-cased to look for Android.bp files in
+        # this dir.
+        api_surfaces_inner_tree = os.path.join(inner_tree_out_path, "api_surfaces")
         os.makedirs(api_surfaces, exist_ok=True)
+        os.makedirs(api_surfaces_inner_tree, exist_ok=True)
         config.add_mountpt(src=api_surfaces,
-                           dst=os.path.join(inner_tree_src_path, "platform",
-                                            "api_surfaces"),
+                           dst=api_surfaces_inner_tree,
                            is_bind=True,
                            rw=False,
                            mandatory=False)
