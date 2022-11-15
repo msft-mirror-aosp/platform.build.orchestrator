@@ -40,6 +40,7 @@ API_DOMAIN_MODULE = "module"
 
 
 class Orchestrator():
+
     def __init__(self, argv):
         """Initialize the object."""
         self.argv = argv
@@ -214,6 +215,8 @@ class Orchestrator():
         # different JDK toolchains.)
         # For now, set `OUT_DIR` which is inner tree agnostic.
         jail_cfg.add_envar(name="OUT_DIR", value=utils.choose_out_dir())
+        # Disable network access in the combined ninja execution
+        jail_cfg.add_option(name="clone_newnet", value="true")
         ninja_runner.run_ninja(context, jail_cfg, targets)
 
         # Success!

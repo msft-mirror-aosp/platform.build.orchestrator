@@ -170,6 +170,14 @@ class InnerTree(object):
                            is_bind=True,
                            rw=False,
                            mandatory=False)
+        # Share the Network namespace for API export.
+        # This ensures that the Bazel client can communicate with the Bazel daemon.
+        # This does not preclude build systems of inner trees from setting
+        # up different sandbox configs. e.g. Soong is free to run the build
+        # in a sandbox that disables network access.
+        # TODO: Make this more restrictive. This should only be limited to the
+        # loopback device.
+        config.add_option(name="clone_newnet", value="false")
 
         def _meld_git(shared, src):
             dst = os.path.join(self.root, src[len(shared) + 1:])
