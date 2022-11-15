@@ -54,7 +54,7 @@ class InnerBuildSoong(common.Commands):
         """Run analysis on this tree."""
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
-            f"--dir={args.inner_tree}", "-all-modules", "nothing"
+            f"--dir={args.inner_tree}", "-all-modules", "nothing", "--search-api-dir"
         ]
 
         p = subprocess.run(cmd, shell=False, check=False)
@@ -279,6 +279,7 @@ class ApiExporterBazel(object):
             f"--dir={self.inner_tree}",
             "api_bp2build",
             "--skip-soong-tests",
+            "--search-api-dir", # This ensures that Android.bp.list remains the same in the analysis step.
         ]
         return self._run_cmd(cmd, **kwargs)
 
