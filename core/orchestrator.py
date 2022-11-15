@@ -155,18 +155,6 @@ class Orchestrator():
                              rw=True,
                              mandatory=True)
 
-        # TODO: Once we have the lightweight tree, this mount should move to
-        # platform/apisurfaces, and be mandatory.
-        # TODO: Does the outer tree (orchestrator) need to have this mapped into
-        # nsjail?
-        jail_cfg.add_mountpt(src=out.api_surfaces_dir(base=out.Base.ORIGIN,
-                                                      abspath=True),
-                             dst=os.path.join(root, "platform",
-                                              "api_surfaces"),
-                             is_bind=True,
-                             rw=False,
-                             mandatory=False)
-
         for tree in self.inner_trees.trees.values():
             jail_cfg.add_nsjail(tree.meld_config)
 
