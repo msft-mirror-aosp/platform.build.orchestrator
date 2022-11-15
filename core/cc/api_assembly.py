@@ -264,14 +264,15 @@ class CcApiAssemblyContext(object):
                 # TODO: Short term hack to make the stub library available to
                 # vendor's inner tree.
                 # out/api_surfaces/stub.so is mounted into vendor's inner tree
-                # as platform/api_surfaces/stub.so. Create a phony edge so that
+                # as out/api_surfaces/stub.so. Create a phony edge so that
                 # vendor binaries can link against the stub via the dep chain
                 # vendor/out/vendor_bin ->
-                # vendor/platform/api_surfaces/stub.so ->
+                # vendor/out/api_surfaces/stub.so ->
                 # out/api_surfaces/stub.so
+                #
                 src_path_in_vendor_inner_tree = output_so.replace(
                     context.out.api_surfaces_dir(),
-                    "vendor/platform/api_surfaces")
+                    os.path.join("vendor", context.out.root(), "api_surfaces"))
                 ninja.add_global_phony(src_path_in_vendor_inner_tree,
                                        [output_so])
                 # Assemble the header files in out before compiling the rdeps

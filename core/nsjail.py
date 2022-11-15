@@ -48,6 +48,7 @@ class Envar():
 
 
 class MountPt(object):
+
     def __init__(self,
                  _kw_only=(),
                  src="",
@@ -154,7 +155,20 @@ class MountPt(object):
                        noexec=self.noexec)
 
 
+class NsjailConfigOption(object):
+    """Options for nsjail configuration."""
+
+    def __init__(self, name, value, comment=""):
+        self.name = name
+        self.value = value
+        self.comment = comment
+
+    def __str__(self):
+        return f"{self.comment}\n{self.name}: {self.value}"
+
+
 class Nsjail(object):
+
     def __init__(self, cwd, verbose=False):
         self.cwd = cwd
         self.verbose = verbose
@@ -191,12 +205,16 @@ class Nsjail(object):
 
             # Map the working User ID to a username
             # Some tools like Java need a valid username
-            MountPt(src_content="user:x:999999:65533:user:/tmp:/bin/bash\n",
+            # Inner trees building with Soong also expect the nobody UID to be
+            # available to setup its own nsjail.
+            MountPt(src_content="user:x:999999:65533:user:/tmp:/bin/bash\n"
+                    "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n",
                     dst="/etc/passwd",
                     mandatory=False),
 
             # Define default group
-            MountPt(src_content="group::65533:user\n",
+            MountPt(src_content="group::65533:user\n"
+                    "nogroup::65534:nobody\n",
                     dst="/etc/group",
                     mandatory=False),
 
@@ -266,6 +284,7 @@ class Nsjail(object):
             # explicit about the path we inject.
             Envar(name="PATH", value="/usr/bin:/usr/sbin:/bin:/sbin"),
         ]
+        self.options = []
 
     def make_cwd_writable(self):
         """Mark things under cwd writable."""
@@ -283,6 +302,10 @@ class Nsjail(object):
         """Add an envar to the config."""
         self.envars.append(Envar(**kwargs))
 
+    def add_option(self, **kwargs):
+        """Add an option to the njsail config."""
+        self.options.append(NsjailConfigOption(**kwargs))
+
     def copy(self):
         """Return a copy of ourselves."""
         ret = Nsjail(self.cwd, verbose=self.verbose)
@@ -299,6 +322,8 @@ class Nsjail(object):
 
     def add_nsjail(self, other):
         """Add another Nsjail object to this one."""
+        # WARNING: clone_newnet option of inner tree should not be merged into
+        # the combined nsjsail.cfg.
         assert other.cwd.startswith(self.cwd), "Must be a subdir"
         our_mounts = {x.dst: x for x in self.mounts}
         for mount in other.mounts:
@@ -375,16 +400,9 @@ class Nsjail(object):
               count: 1
             }}
 
-            # Share PID and Network namespace between parent and child process.
+            # Share PID namespace between parent and child process.
             # Sharing the PID namespace ensures that the Bazel daemon does not
             # get killed after every invocation.
-            # Sharing the Network namespace ensures that the Bazel client can
-            # communicate with the Bazel daemon.
-            #
-            # This does not preclude build systems of inner trees from setting
-            # up different sandbox configs. e.g. Soong is free to run the build
-            # in a sandbox that disables network access.
-            clone_newnet: false
             clone_newpid: false
 
             """)
@@ -393,6 +411,10 @@ class Nsjail(object):
         data += '\n'
         for mount in self.mounts:
             data += f'{mount}'
+        data += '\n'
+        for option in self.options:
+            data += f"{option}"
+
         if fn:
             os.makedirs(os.path.dirname(fn), exist_ok=True)
             with open(fn, "w", encoding="iso-8859-1") as f:
