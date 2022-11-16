@@ -163,13 +163,25 @@ class InnerTree(object):
         api_surfaces = self.context.out.api_surfaces_dir(
             base=self.context.out.Base.ORIGIN, abspath=True)
         # Always mount api_surfaces dir.
+        # The mount point is out/api_surfaces -> <inner_tree>/out/api_surfaces
+        # soong_finder will be speciall-cased to look for Android.bp files in
+        # this dir.
+        api_surfaces_inner_tree = os.path.join(inner_tree_out_path, "api_surfaces")
         os.makedirs(api_surfaces, exist_ok=True)
+        os.makedirs(api_surfaces_inner_tree, exist_ok=True)
         config.add_mountpt(src=api_surfaces,
-                           dst=os.path.join(inner_tree_src_path, "platform",
-                                            "api_surfaces"),
+                           dst=api_surfaces_inner_tree,
                            is_bind=True,
                            rw=False,
                            mandatory=False)
+        # Share the Network namespace for API export.
+        # This ensures that the Bazel client can communicate with the Bazel daemon.
+        # This does not preclude build systems of inner trees from setting
+        # up different sandbox configs. e.g. Soong is free to run the build
+        # in a sandbox that disables network access.
+        # TODO: Make this more restrictive. This should only be limited to the
+        # loopback device.
+        config.add_option(name="clone_newnet", value="false")
 
         def _meld_git(shared, src):
             dst = os.path.join(self.root, src[len(shared) + 1:])
