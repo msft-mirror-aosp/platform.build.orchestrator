@@ -24,10 +24,21 @@ from typing import List, Tuple
 import common
 from find_api_packages import ApiPackageFinder
 
+# Additional env vars to pass to the SOONG UI invocation
+_ENV_VARS = {
+        # Orchestrator runs in a Read-only workspace, but inner_build does not
+        # (by default). Set this environment variable so that inner_build can
+        # setup its own nsjail.
+        "BUILD_BROKEN_SRC_DIR_IS_WRITABLE": "false",
+}
 
 class InnerBuildSoong(common.Commands):
 
     def export_api_contributions(self, args):
+        with common.setenv(**_ENV_VARS):
+            self._export_api_contributions(args)
+
+    def _export_api_contributions(self, args):
         # Bazel is used to export API contributions even when the primary build
         # system is Soong.
         exporter = ApiExporterBazel(inner_tree=args.inner_tree,
@@ -36,10 +47,14 @@ class InnerBuildSoong(common.Commands):
         exporter.export_api_contributions()
 
     def analyze(self, args):
+        with common.setenv(**_ENV_VARS):
+            self._analyze(args)
+
+    def _analyze(self, args):
         """Run analysis on this tree."""
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
-            f"--dir={args.inner_tree}", "-all-modules", "nothing"
+            f"--dir={args.inner_tree}", "-all-modules", "nothing", "--search-api-dir"
         ]
 
         p = subprocess.run(cmd, shell=False, check=False)
@@ -264,6 +279,7 @@ class ApiExporterBazel(object):
             f"--dir={self.inner_tree}",
             "api_bp2build",
             "--skip-soong-tests",
+            "--search-api-dir", # This ensures that Android.bp.list remains the same in the analysis step.
         ]
         return self._run_cmd(cmd, **kwargs)
 
