@@ -23,6 +23,7 @@ from typing import Optional
 from cc.stub_generator import StubGenerator, GenCcStubsInput
 from cc.library import CompileContext, Compiler, LinkContext, Linker
 from build_file_generator import AndroidBpFile, AndroidBpModule, ConfigAxis
+from utils import ASSEMBLE_PHONY_TARGET
 
 ARCHES = ["arm", "arm64", "x86", "x86_64"]
 
@@ -34,9 +35,6 @@ DEVICE_CLANG_TRIPLES = {
     "x86": "i686-linux-android",
     "x86_64": "x86_64-linux-android",
 }
-
-ASSEMBLE_PHONY_TARGET = "multitree-sdk"
-
 
 class CcApiAssemblyContext(object):
     """Context object for managing global state of CC API Assembly."""
