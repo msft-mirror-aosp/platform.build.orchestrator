@@ -1,0 +1,143 @@
+// Copyright 2022 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+api_domain {
+    name: "system",
+    cc_api_contributions: [
+        // ndk libraries for publicapi
+        "libaaudio.ndk",
+        "libamidi.ndk",
+        "libandroid.ndk",
+        "libbinder_ndk.ndk",
+        "libc.ndk",
+        "libcamera2ndk.ndk",
+        "libdl.ndk",
+        "libEGL.ndk",
+        "libGLESv1_CM.ndk",
+        "libGLESv2.ndk",
+        "libGLESv3.ndk",
+        "libicu.ndk",
+        "libjnigraphics.ndk",
+        "liblog.ndk",
+        "libm.ndk",
+        "libnativewindow.ndk",
+        "libOpenMAXAL.ndk",
+        "libOpenSLES.ndk",
+        "libstdc++.ndk",
+        "libsync.ndk",
+        "libvulkan.ndk",
+        "libz.ndk",
+
+        // systemapi and vendorapi libraries
+        "heapprofd_api_noop",
+        "heapprofd_client_api",
+        "libaaudio",
+        "libadbd_auth",
+        "libadbd_fs",
+        "libandroid",
+        "libandroid_net",
+        "libartpalette-system",
+        "libbinder_ndk",
+        "libbinder_rpc_unstable",
+        "libc",
+        "libcgrouprc",
+        "libdl",
+        "libdl_android",
+        "libft2",
+        "libEGL",
+        "libGLESv1_CM",
+        "libGLESv2",
+        "libGLESv3",
+        "libincident",
+        "liblog",
+        "libm",
+        "libmediametrics",
+        "libmediandk",
+        "libnativewindow",
+        "libneuralnetworks_packageinfo",
+        "libRS",
+        "libselinux",
+        "libsync",
+        "libvndksupport",
+        "libvulkan",
+        "libz",
+    ],
+}
+
+// All the apex api_domains have been suffixed with .contribution for now
+// This prevents a name-collision with the actual apex
+// Long term, the implementation of these two module types should be merged
+api_domain {
+    name: "com.android.adbd.contribution",
+    cc_api_contributions: [
+        "libadb_pairing_auth",
+        "libadb_pairing_connection",
+        "libadb_pairing_server",
+        "libadbconnection_client",
+    ],
+}
+
+api_domain {
+    name: "com.android.art.contribution",
+    cc_api_contributions: [
+        "libandroidio",
+        "libdexfile",
+        "libnativebridge",
+        "libnativehelper",
+        "libnativeloader",
+        "libsigchain",
+    ],
+}
+
+api_domain {
+    name: "com.android.i18n.contribution",
+    cc_api_contributions: [
+        "libandroidicu",
+        "libicu",
+    ],
+}
+
+api_domain {
+    name: "com.android.neuralnetworks.contribution",
+    cc_api_contributions: [
+        "libneuralnetworks.ndk",
+        "libneuralnetworks",
+    ],
+}
+
+api_domain {
+    name: "com.android.os.statsd.contribution",
+    cc_api_contributions: [
+        "libstatspull",
+        "libstatssocket",
+    ],
+}
+
+api_domain {
+    name: "com.android.resolv.contribution",
+    cc_api_contributions: [
+        "libnetd_resolv",
+    ],
+}
+
+api_domain {
+    name: "com.android.tethering.contribution",
+    cc_api_contributions: [
+        "libnetd_updatable",
+    ],
+}

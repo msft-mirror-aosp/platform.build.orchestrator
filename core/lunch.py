@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
-import glob
 import json
 import os
 import sys
@@ -23,6 +21,7 @@ import sys
 EXIT_STATUS_OK = 0
 EXIT_STATUS_ERROR = 1
 EXIT_STATUS_NEED_HELP = 2
+_VALID_VARIANTS = ["user", "userdebug", "eng"]
 
 
 def find_dirs(path, name, ttl=6):
@@ -42,7 +41,7 @@ def find_dirs(path, name, ttl=6):
                 # Consume filesystem errors, e.g. too many links, permission etc.
                 pass
     for subdir in subdirs:
-        yield from find_dirs(os.path.join(path, subdir), name, ttl-1)
+        yield from find_dirs(os.path.join(path, subdir), name, ttl - 1)
 
 
 def walk_paths(path, matcher, ttl=10):
@@ -64,7 +63,7 @@ def walk_paths(path, matcher, ttl=10):
                 # Consume filesystem errors, e.g. too many links, permission etc.
                 pass
     for subdir in sorted(subdirs):
-        yield from walk_paths(os.path.join(path, subdir), matcher, ttl-1)
+        yield from walk_paths(os.path.join(path, subdir), matcher, ttl - 1)
 
 
 def find_file(path, filename):
@@ -75,12 +74,16 @@ def find_file(path, filename):
     for f in walk_paths(path, lambda x: x == filename):
         return f
 
-# TODO: When orchestrator is in its own git project remove the "build" and "make" here
+
 class LunchContext(object):
     """Mockable container for lunch"""
-    def __init__(self, workspace_root, orchestrator_path_prefix_components=["build", "build", "make"]):
-      self.workspace_root = workspace_root
-      self.orchestrator_path_prefix_components = orchestrator_path_prefix_components
+
+    def __init__(self, workspace_root, orchestrator_path_prefix_components=()):
+        prefix = orchestrator_path_prefix_components or ("orchestrator",
+                                                         "build")
+        self.workspace_root = workspace_root
+        self.orchestrator_path_prefix_components = prefix
+
 
 def find_config_dirs(context):
     """Find the configuration files in the well known locations inside workspace_root
@@ -99,11 +102,14 @@ def find_config_dirs(context):
     """
     # TODO: This is not looking in inner trees correctly.
 
-    yield os.path.join(context.workspace_root, *context.orchestrator_path_prefix_components, "orchestrator/multitree_combos")
+    yield os.path.join(context.workspace_root,
+                       *context.orchestrator_path_prefix_components,
+                       "orchestrator/multitree_combos")
 
     dirs = ["vendor", "device"]
     for d in dirs:
-        yield from find_dirs(os.path.join(context.workspace_root, d), "multitree_combos")
+        yield from find_dirs(os.path.join(context.workspace_root, d),
+                             "multitree_combos")
 
 
 def find_named_config(context, shortname):
@@ -152,7 +158,7 @@ class ConfigException(Exception):
     ERROR_CYCLE = "cycle"
     ERROR_VALIDATE = "validate"
 
-    def __init__(self, kind, message, locations=[], line=0):
+    def __init__(self, kind, message, locations=(), line=0):
         """Error thrown when loading and parsing configurations.
 
         Args:
@@ -160,7 +166,7 @@ class ConfigException(Exception):
             locations: List of filenames of the include history.  The 0 index one
                        the location where the actual error occurred
         """
-        if len(locations):
+        if locations:
             s = locations[0]
             if line:
                 s += ":"
@@ -169,9 +175,9 @@ class ConfigException(Exception):
         else:
             s = ""
         s += message
-        if len(locations):
+        if locations:
             for loc in locations[1:]:
-                s += "\n        included from %s" % loc
+                s += f"\n        included from {loc}"
         super().__init__(s)
         self.kind = kind
         self.message = message
@@ -185,28 +191,33 @@ def load_config(filename):
     Raises:
         ConfigException on errors
     """
+
     def load_and_merge(fn, visited):
-        with open(fn) as f:
+        with open(fn, encoding='iso-8859-1') as f:
             try:
                 contents = json.load(f)
             except json.decoder.JSONDecodeError as ex:
-                if True:
-                    raise ConfigException(ConfigException.ERROR_PARSE, ex.msg, visited, ex.lineno)
-                else:
-                    sys.stderr.write("exception %s" % ex.__dict__)
-                    raise ex
+                # Pretty up the exception message.
+                # pylint: disable=raise-missing-from
+                raise ConfigException(ConfigException.ERROR_PARSE, ex.msg,
+                                      visited, ex.lineno)
+                # sys.stderr.write("exception %s" % ex.__dict__)
+                # raise ex
             # Merge all the parents into one data, with first-wins policy
             inherited_data = {}
             for parent in contents.get("inherits", []):
                 if parent in visited:
-                    raise ConfigException(ConfigException.ERROR_CYCLE, "Cycle detected in inherits",
-                            visited)
-                deep_merge(inherited_data, load_and_merge(parent, [parent,] + visited))
+                    raise ConfigException(ConfigException.ERROR_CYCLE,
+                                          "Cycle detected in inherits",
+                                          visited)
+                deep_merge(inherited_data,
+                           load_and_merge(parent, [parent] + visited))
             # Then merge inherited_data into contents, but what's already there will win.
             deep_merge(contents, inherited_data)
             contents.pop("inherits", None)
         return contents
-    return load_and_merge(filename, [filename,])
+
+    return load_and_merge(filename, [filename])
 
 
 def deep_merge(merged, addition):
@@ -224,13 +235,12 @@ def make_config_header(config_file, config, variant):
         maxcols = max([len(row) for row in rows])
         widths = [0] * maxcols
         for row in rows:
-            for i in range(len(row)):
-                widths[i] = max(widths[i], len(row[i]))
+            for i, v in enumerate(row):
+                widths[i] = max(widths[i], len(v))
         text = []
         for row in rows:
             rowtext = []
-            for i in range(len(row)):
-                cell = row[i]
+            for i, cell in enumerate(row):
                 rowtext.append(str(cell))
                 rowtext.append(" " * (widths[i] - len(cell)))
                 rowtext.append("  ")
@@ -239,7 +249,6 @@ def make_config_header(config_file, config, variant):
 
     trees = [("Component", "Path", "Product"),
              ("---------", "----", "-------")]
-    entry = config.get("system", None)
 
     def add_config_tuple(trees, entry, name):
         if entry:
@@ -251,33 +260,36 @@ def make_config_header(config_file, config, variant):
     for k, v in config.get("modules", {}).items():
         add_config_tuple(trees, v, k)
 
-    return """========================================
-TARGET_BUILD_COMBO=%(TARGET_BUILD_COMBO)s
-TARGET_BUILD_VARIANT=%(TARGET_BUILD_VARIANT)s
-
-%(trees)s
-========================================\n""" % {
-        "TARGET_BUILD_COMBO": config_file,
-        "TARGET_BUILD_VARIANT": variant,
-        "trees": make_table(trees),
-    }
+    return "\n".join([
+        "========================================",
+        f"TARGET_BUILD_COMBO={config_file}",
+        f"TARGET_BUILD_VARIANT={variant}",
+        "",
+        f"{make_table(trees)}",
+        "========================================",
+        "",
+    ])
 
 
 def do_lunch(args):
     """Handle the lunch command."""
-    # Check that we're at the top of a multitree workspace by seeing if this script exists.
-    if not os.path.exists("build/build/make/orchestrator/core/lunch.py"):
-        sys.stderr.write("ERROR: lunch.py must be run from the root of a multi-tree workspace\n")
+    # Check that we're at the top of a multitree workspace by seeing if this
+    # script exists.
+    if not os.path.exists("orchestrator/build/orchestrator/core/lunch.py"):
+        sys.stderr.write(
+            "ERROR: lunch.py must be run in the root of the multi-tree"
+            " workspace\n")
         return EXIT_STATUS_ERROR
 
     # Choose the config file
     config_file, variant = choose_config_from_args(".", args)
 
-    if config_file == None:
-        sys.stderr.write("Can't find lunch combo file for: %s\n" % " ".join(args))
+    if config_file is None:
+        sys.stderr.write(
+            f"Can't find lunch combo file for: {' '.join(args)}\n")
         return EXIT_STATUS_NEED_HELP
-    if variant == None:
-        sys.stderr.write("Can't find variant for: %s\n" % " ".join(args))
+    if variant is None:
+        sys.stderr.write(f"Can't find variant for: {' '.join(args)}\n")
         return EXIT_STATUS_NEED_HELP
 
     # Parse the config file
@@ -287,15 +299,15 @@ def do_lunch(args):
         sys.stderr.write(str(ex))
         return EXIT_STATUS_ERROR
 
-    # Fail if the lunchable bit isn't set, because this isn't a usable config
+    # Fail if the lunchable bit isn't set, because this isn't a usable config.
     if not config.get("lunchable", False):
-        sys.stderr.write("%s: Lunch config file (or inherited files) does not have the 'lunchable'"
-                % config_file)
-        sys.stderr.write(" flag set, which means it is probably not a complete lunch spec.\n")
+        sys.stderr.write(
+            "{config_file}: Lunch config file (or inherited files) does"
+            " not have the 'lunchable' flag set, which means it is"
+            " probably not a complete lunch spec.\n")
 
-    # All the validation has passed, so print the name of the file and the variant
-    sys.stdout.write("%s\n" % config_file)
-    sys.stdout.write("%s\n" % variant)
+    # All the validation has passed: print the name of the file and the variant.
+    sys.stdout.write(f"{config_file}\n{variant}\n")
 
     # Write confirmation message to stderr
     sys.stderr.write(make_config_header(config_file, config, variant))
@@ -305,8 +317,8 @@ def do_lunch(args):
 
 def find_all_combo_files(context):
     """Find all .mcombo files in the prescribed locations in the tree."""
-    for dir in find_config_dirs(context):
-        for file in walk_paths(dir, lambda x: x.endswith(".mcombo")):
+    for directory in find_config_dirs(context):
+        for file in walk_paths(directory, lambda x: x.endswith(".mcombo")):
             yield file
 
 
@@ -316,16 +328,20 @@ def is_file_lunchable(config_file):
     try:
         config = load_config(config_file)
     except ConfigException as ex:
-        sys.stderr.write("%s" % ex)
+        sys.stderr.write(str(ex))
         return False
     return config.get("lunchable", False)
 
 
 def find_all_lunchable(context):
-    """Find all mcombo files in the tree (rooted at context.workspace_root) that when
-    parsed (and inheritance is flattened) have lunchable: true."""
-    for f in [x for x in find_all_combo_files(context) if is_file_lunchable(x)]:
-        yield f
+    """Find all lunchable mcombo files in the tree.
+
+    The search is rooted at context.workspace_root.  Lunchable mcombo files have
+    `lunchable: true` when parsed (and inheritance is flattened).
+    """
+    for combo in find_all_combo_files(context):
+        if is_file_lunchable(combo):
+            yield combo
 
 
 def load_current_config():
@@ -335,18 +351,20 @@ def load_current_config():
     # Identify the config file
     config_file = os.environ.get("TARGET_BUILD_COMBO")
     if not config_file:
-        raise ConfigException(ConfigException.ERROR_IDENTIFY,
-                "TARGET_BUILD_COMBO not set. Run lunch or pass a combo file.")
+        raise ConfigException(
+            ConfigException.ERROR_IDENTIFY,
+            "TARGET_BUILD_COMBO not set. Run lunch or pass a combo file.")
 
     # Parse the config file
     config = load_config(config_file)
 
     # Validate the config file
     if not config.get("lunchable", False):
-        raise ConfigException(ConfigException.ERROR_VALIDATE,
-                "Lunch config file (or inherited files) does not have the 'lunchable'"
-                    + " flag set, which means it is probably not a complete lunch spec.",
-                [config_file,])
+        raise ConfigException(
+            ConfigException.ERROR_VALIDATE,
+            ("Lunch config file (or an inherited file) does not have the"
+             " 'lunchable' flag set, which means it is probably not a complete"
+             " lunch spec."), [config_file])
 
     # TODO: Validate that:
     #   - there are no modules called system or vendor
@@ -354,10 +372,16 @@ def load_current_config():
 
     variant = os.environ.get("TARGET_BUILD_VARIANT")
     if not variant:
-        variant = "eng" # TODO: Is this the right default?
+        variant = "eng"  # TODO: Is this the right default?
     # Validate variant is user, userdebug or eng
+    if variant not in _VALID_VARIANTS:
+        raise ConfigException(
+            ConfigException.ERROR_VALIDATE,
+            f"Variant must be one of: {', '.join(_VALID_VARIANTS)}.",
+            [config_file])
 
     return config_file, config, variant
+
 
 def do_list():
     """Handle the --list command."""
@@ -372,7 +396,8 @@ def do_print(args):
     if len(args) == 0:
         config_file = os.environ.get("TARGET_BUILD_COMBO")
         if not config_file:
-            sys.stderr.write("TARGET_BUILD_COMBO not set. Run lunch before building.\n")
+            sys.stderr.write(
+                "TARGET_BUILD_COMBO not set. Run lunch before building.\n")
             return EXIT_STATUS_NEED_HELP
     elif len(args) == 1:
         config_file = args[0]
@@ -401,17 +426,17 @@ def main(argv):
         return EXIT_STATUS_OK
 
     if len(argv) == 2 and argv[1] == "--print":
-        return do_print(argv[2:])
+        do_print(argv[2:])
         return EXIT_STATUS_OK
 
     if (len(argv) == 3 or len(argv) == 4) and argv[1] == "--lunch":
         return do_lunch(argv[2:])
 
-    sys.stderr.write("Unknown lunch command: %s\n" % " ".join(argv[1:]))
+    sys.stderr.write(f"Unknown lunch command: {' '.join(argv[1:])}\n")
     return EXIT_STATUS_NEED_HELP
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-
 
 # vim: sts=4:ts=4:sw=4
