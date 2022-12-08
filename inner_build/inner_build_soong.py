@@ -24,18 +24,32 @@ from typing import List, Tuple
 import common
 from find_api_packages import ApiPackageFinder
 
-# Additional env vars to pass to the SOONG UI invocation
+# Additional env vars to pass to the SOONG UI invocation.
 _ENV_VARS = {
-        # Orchestrator runs in a Read-only workspace, but inner_build does not
-        # (by default). Set this environment variable so that inner_build can
-        # setup its own nsjail.
-        "BUILD_BROKEN_SRC_DIR_IS_WRITABLE": "false",
+    # Orchestrator runs in a Read-only workspace, but inner_build does not
+    # (by default). Set this environment variable so that inner_build can
+    # setup its own nsjail.
+    "BUILD_BROKEN_SRC_DIR_IS_WRITABLE": "false",
+
+    # TODO: Once we are publishing a lightweight API surfaces tree, we
+    # should not need to set the environment variables.
+    "ALLOW_MISSING_DEPENDENCIES": "true",
+    "SKIP_VNDK_VARIANTS_CHECK": "true",
 }
 
+
 class InnerBuildSoong(common.Commands):
+    def __init__(self, env_vars=None):
+        """Initialize the instance.
+
+        Args:
+          env_vars: Environment variable updates.  See common.setenv()
+        """
+        self.env_vars = dict(**_ENV_VARS)
+        self.env_vars.update(env_vars or {})
 
     def export_api_contributions(self, args):
-        with common.setenv(**_ENV_VARS):
+        with common.setenv(**self.env_vars):
             self._export_api_contributions(args)
 
     def _export_api_contributions(self, args):
@@ -47,14 +61,15 @@ class InnerBuildSoong(common.Commands):
         exporter.export_api_contributions()
 
     def analyze(self, args):
-        with common.setenv(**_ENV_VARS):
+        with common.setenv(**self.env_vars):
             self._analyze(args)
 
     def _analyze(self, args):
         """Run analysis on this tree."""
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
-            f"--dir={args.inner_tree}", "-all-modules", "nothing", "--search-api-dir"
+            f"--dir={args.inner_tree}", "-all-modules", "nothing",
+            "--search-api-dir"
         ]
 
         p = subprocess.run(cmd, shell=False, check=False)
@@ -173,8 +188,9 @@ class ApiExporterBazel(object):
             contribution_targets.extend(labels)
         return contribution_targets
 
-    def _build_api_domain_contribution_targets(
-            self, contribution_targets: List[str]) -> List[ApiMetadataFile]:
+    def _build_api_domain_contribution_targets(self,
+                                               contribution_targets: List[str]
+                                               ) -> List[ApiMetadataFile]:
         """Build the contribution targets
 
         Return:
@@ -203,7 +219,7 @@ class ApiExporterBazel(object):
             # we just ran bp2build. We can run it in again,
             # but this adds time.
             run_bp2build=False,
-           )
+        )
         # The cquery response contains a blank line at the end.
         # Remove this before creating the filepaths array.
         filepaths = proc.stdout.decode().rstrip().split("\n")
@@ -279,7 +295,7 @@ class ApiExporterBazel(object):
             f"--dir={self.inner_tree}",
             "api_bp2build",
             "--skip-soong-tests",
-            "--search-api-dir", # This ensures that Android.bp.list remains the same in the analysis step.
+            "--search-api-dir",  # This ensures that Android.bp.list remains the same in the analysis step.
         ]
         return self._run_cmd(cmd, **kwargs)
 
