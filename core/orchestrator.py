@@ -189,7 +189,8 @@ class Orchestrator():
 
         # 4. Build Execution
         # TODO: determine the targets from the lunch command and mcombo files.
-        targets = self.opts.targets or ["staging", "system/system"]
+        # For now, use a default that is consistent with having the build work.
+        targets = self.opts.targets or ["vendor/nothing"]
         print("Running ninja...")
 
         # TODO: Handle environment variables of each inner build in combined
