@@ -20,12 +20,12 @@ import os
 import sys
 
 from cc.api_assembly import CcApiAssemblyContext
+from java.api_assembly import JavaApiAssemblyContext
 from build_file_generator import BuildFileGenerator
 import ninja_tools
 
 ContributionData = collections.namedtuple("ContributionData",
                                           ("inner_tree", "json_data"))
-
 
 def assemble_apis(context, inner_trees):
     # Find all of the contributions from the inner tree
@@ -142,16 +142,6 @@ def collate_contributions(contributions):
     return list(grouped.values())
 
 
-def assemble_java_api_library(context, ninja, build_file, stub_library):
-    print("assembling java_api_library %s-%s %s from:" %
-          (stub_library.api_surface, stub_library.api_surface_version,
-           stub_library.name))
-    for contrib in stub_library.contributions:
-        print("  %s %s" %
-              (contrib.api_domain, contrib.library_contribution["api"]))
-    # TODO: Implement me
-
-
 def assemble_resource_api_library(context, ninja, build_file, stub_library):
     print("assembling resource_api_library %s-%s %s from:" %
           (stub_library.api_surface, stub_library.api_surface_version,
@@ -164,6 +154,6 @@ def assemble_resource_api_library(context, ninja, build_file, stub_library):
 
 STUB_LANGUAGE_HANDLERS = {
     "cc_libraries": CcApiAssemblyContext().get_cc_api_assembler(),
-    "java_libraries": assemble_java_api_library,
+    "java_libraries": JavaApiAssemblyContext().get_java_api_assembler(),
     "resource_libraries": assemble_resource_api_library,
 }
