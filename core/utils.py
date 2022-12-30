@@ -21,6 +21,8 @@ import platform
 _API_SURFACES = "api_surfaces"
 _INTERMEDIATES = "intermediates"
 
+# Phony target to assemble al the api files in out/api_surfaces
+ASSEMBLE_PHONY_TARGET = "multitree-sdk"
 
 class Context(object):
     """Mockable container for global state."""
