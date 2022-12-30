@@ -77,6 +77,13 @@ api_domain {
         "libvulkan",
         "libz",
     ],
+
+    java_api_contributions: [
+        "api-stubs-docs-non-updatable",
+        "module-lib-api-stubs-docs-non-updatable",
+        "system-api-stubs-docs-non-updatable",
+        "test-api-stubs-docs-non-updatable",
+    ],
 }
 
 // All the apex api_domains have been suffixed with .contribution for now
@@ -102,6 +109,80 @@ api_domain {
         "libnativeloader",
         "libsigchain",
     ],
+    java_api_contributions: [
+        "art.module.intra.core.api.stubs.source",
+        "art.module.public.api.stubs.source",
+        "art.module.public.api.stubs.source.module_lib",
+        "art.module.public.api.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.adservices.contribution",
+    // This apex contributes 2 java libraries
+    java_api_contributions: [
+        "framework-adservices.stubs.source",
+        "framework-adservices.stubs.source.module_lib",
+        "framework-adservices.stubs.source.system",
+        "framework-sdksandbox.stubs.source",
+        "framework-sdksandbox.stubs.source.module_lib",
+        "framework-sdksandbox.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.appsearch.contribution",
+    java_api_contributions: [
+        "framework-appsearch.stubs.source",
+        "framework-appsearch.stubs.source.module_lib",
+        "framework-appsearch.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.bluetooth.contribution",
+    java_api_contributions: [
+        "framework-bluetooth.stubs.source",
+        "framework-bluetooth.stubs.source.module_lib",
+        "framework-bluetooth.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.connectivity.contribution",
+    java_api_contributions: [
+        "framework-connectivity.stubs.source",
+        "framework-connectivity.stubs.source.module_lib",
+        "framework-connectivity.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.connectivity-t.contribution",
+    java_api_contributions: [
+        "framework-connectivity-t.stubs.source",
+        "framework-connectivity-t.stubs.source.module_lib",
+        "framework-connectivity-t.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.conscrypt.contribution",
+    java_api_contributions: [
+        "conscrypt.module.intra.core.api.stubs.source",
+        "conscrypt.module.public.api.stubs.source",
+        "conscrypt.module.public.api.stubs.source.module_lib",
+        "conscrypt.module.public.api.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.graphics.contribution",
+    java_api_contributions: [
+        "framework-graphics.stubs.source",
+        "framework-graphics.stubs.source.module_lib",
+        "framework-graphics.stubs.source.system",
+    ],
 }
 
 api_domain {
@@ -109,6 +190,39 @@ api_domain {
     cc_api_contributions: [
         "libandroidicu",
         "libicu",
+    ],
+    java_api_contributions: [
+        "i18n.module.intra.core.api.stubs.source",
+        "i18n.module.public.api.stubs.source",
+        "i18n.module.public.api.stubs.source.module_lib",
+        "i18n.module.public.api.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.ipsec.contribution",
+    java_api_contributions: [
+        "android.net.ipsec.ike.stubs.source",
+        "android.net.ipsec.ike.stubs.source.module_lib",
+        "android.net.ipsec.ike.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.media.contribution",
+    java_api_contributions: [
+        "framework-media.stubs.source",
+        "framework-media.stubs.source.module_lib",
+        "framework-media.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.mediaprovider.contribution",
+    java_api_contributions: [
+        "framework-mediaprovider.stubs.source",
+        "framework-mediaprovider.stubs.source.module_lib",
+        "framework-mediaprovider.stubs.source.system",
     ],
 }
 
@@ -121,10 +235,42 @@ api_domain {
 }
 
 api_domain {
+    name: "com.android.ondevicepersonalization.contribution",
+    java_api_contributions: [
+        "framework-ondevicepersonalization.stubs.source",
+        "framework-ondevicepersonalization.stubs.source.module_lib",
+        "framework-ondevicepersonalization.stubs.source.system",
+    ],
+}
+
+api_domain {
     name: "com.android.os.statsd.contribution",
     cc_api_contributions: [
         "libstatspull",
         "libstatssocket",
+    ],
+    java_api_contributions: [
+        "framework-statsd.stubs.source",
+        "framework-statsd.stubs.source.module_lib",
+        "framework-statsd.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.permission.contribution",
+    java_api_contributions: [
+        "framework-permission.stubs.source",
+        "framework-permission.stubs.source.module_lib",
+        "framework-permission.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.permission-s.contribution",
+    java_api_contributions: [
+        "framework-permission-s.stubs.source",
+        "framework-permission-s.stubs.source.module_lib",
+        "framework-permission-s.stubs.source.system",
     ],
 }
 
@@ -136,8 +282,59 @@ api_domain {
 }
 
 api_domain {
+    name: "com.android.scheduling.contribution",
+    java_api_contributions: [
+        "framework-scheduling.stubs.source",
+        "framework-scheduling.stubs.source.module_lib",
+        "framework-scheduling.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.sdkext.contribution",
+    java_api_contributions: [
+        "framework-sdkextensions.stubs.source",
+        "framework-sdkextensions.stubs.source.module_lib",
+        "framework-sdkextensions.stubs.source.system",
+    ],
+}
+
+api_domain {
     name: "com.android.tethering.contribution",
     cc_api_contributions: [
         "libnetd_updatable",
+    ],
+    java_api_contributions: [
+        "framework-tethering.stubs.source",
+        "framework-tethering.stubs.source.module_lib",
+        "framework-tethering.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.uwb.contribution",
+    java_api_contributions: [
+        "framework-uwb.stubs.source",
+        "framework-uwb.stubs.source.module_lib",
+        "framework-uwb.stubs.source.system",
+    ],
+}
+
+api_domain {
+    name: "com.android.virt.contribution",
+    java_api_contributions: [
+        "framework-virtualization.stubs.source",
+        "framework-virtualization.stubs.source.module_lib",
+        "framework-virtualization.stubs.source.system",
+        "framework-virtualization.stubs.source.test",
+    ],
+}
+
+api_domain {
+    name: "com.android.wifi.contribution",
+    java_api_contributions: [
+        "framework-wifi.stubs.source",
+        "framework-wifi.stubs.source.module_lib",
+        "framework-wifi.stubs.source.system",
     ],
 }

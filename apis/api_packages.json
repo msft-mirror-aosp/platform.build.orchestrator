@@ -12,9 +12,69 @@
 		"is_apex": true
 	},
 	{
+		"api_domain": "com.android.adservices",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.adservices.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.appsearch",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.appsearch.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.bluetooth",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.bluetooth.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.connectivity",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.connectivity.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.connectivity-t",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.connectivity-t.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.conscrypt",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.conscrypt.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.graphics",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.graphics.contribution",
+		"is_apex": true
+	},
+	{
 		"api_domain": "com.android.i18n",
 		"api_package": "//build/orchestrator/apis",
 		"api_target": "com.android.i18n.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.ipsec",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.ipsec.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.media",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.media.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.mediaprovider",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.mediaprovider.contribution",
 		"is_apex": true
 	},
 	{
@@ -29,10 +89,40 @@
 		"api_target": "com.android.os.statsd.contribution",
 		"is_apex": true
 	},
-		{
+	{
+		"api_domain": "com.android.ondevicepersonalization",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.ondevicepersonalization.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.permission",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.permission.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.permission-s",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.permission-s.contribution",
+		"is_apex": true
+	},
+	{
 		"api_domain": "com.android.resolv",
 		"api_package": "//build/orchestrator/apis",
 		"api_target": "com.android.resolv.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.scheduling",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.scheduling.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.sdkext",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.sdkext.contribution",
 		"is_apex": true
 	},
 	{
@@ -41,7 +131,25 @@
 		"api_target": "com.android.tethering.contribution",
 		"is_apex": true
 	},
-		{
+	{
+		"api_domain": "com.android.uwb",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.uwb.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.virt",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.virt.contribution",
+		"is_apex": true
+	},
+	{
+		"api_domain": "com.android.wifi",
+		"api_package": "//build/orchestrator/apis",
+		"api_target": "com.android.wifi.contribution",
+		"is_apex": true
+	},
+	{
 		"api_domain": "system",
 		"api_package": "//build/orchestrator/apis",
 		"api_target": "system"
