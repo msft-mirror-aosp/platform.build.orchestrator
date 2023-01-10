@@ -1,13 +1,9 @@
 DEMO
 
-===========================================================================
-NOTE: This document is likely out of date, pending the outer manifest being
-updated to have the orchestrator in its own sub manifest.
-===========================================================================
+To verify that the default use-case works as expected, run:
 
-from the root of the workspace
+  ${WORKSPACE_ROOT}/orchestrator/test_build.sh
 
-multitree_lunch orchestrator/build/orchestrator/test_workspace/combo.mcombo eng
+To verify a particular (multitree_build) target, run:
 
-rm -rf out && multitree_build && echo "==== Files ====" && find out -type f
-
+  ${WORKSPACE_ROOT}/orchestrator/test_build.sh ${TARGET}
