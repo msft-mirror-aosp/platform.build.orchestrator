@@ -114,6 +114,9 @@ api_domain {
         "art.module.public.api.stubs.source",
         "art.module.public.api.stubs.source.module_lib",
         "art.module.public.api.stubs.source.system",
+        // ART's contributions to Toolchain API surface
+        // This is a droidstubs module and not a java_sdk_library
+        "art.module.toolchain.api",
     ],
 }
 
