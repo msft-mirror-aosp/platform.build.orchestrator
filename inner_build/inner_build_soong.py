@@ -110,22 +110,22 @@ class InnerBuildSoong(common.Commands):
 class ApiMetadataFile(object):
     """Utility class that wraps the generated API surface metadata files"""
 
-    def __init__(self, inner_tree: str, path: str, bazel_symlink_prefix: str):
+    def __init__(self, inner_tree: str, path: str, bazel_output_user_root: str):
         self.inner_tree = inner_tree
         self.path = path
-        self.bazel_symlink_prefix = bazel_symlink_prefix
+        self.bazel_output_user_root = bazel_output_user_root
 
     def fullpath(self) -> str:
-        # To prevent writes to the source tree, the Bazel server is launched
-        # with --symlink_prefix.
-        # Inject the symlink prefix into the cquery result so that Build
+        # The Bazel convenience symlinks do not exist inside the nsjail
+        # workspace, since the workspace is read-only.
+        # Inject the output_user_root prefix into cquery result so that Build
         # orchestrator can find the metadata files.
         #
         # e.g. cquery returns bazel-out/android_target-fastbuild/bin/... which
         # does not exist.
-        # replace with <symlink_prefix>/bin/... which does exist.
-        cleaned_path = self.path.replace("bazel-out/android_target-fastbuild/",
-                                         self.bazel_symlink_prefix)
+        # replace with <output_user_root>/... which does exist.
+        cleaned_path = self.path.replace("bazel-out",
+                                         self.bazel_output_user_root)
         return os.path.join(self.inner_tree, cleaned_path)
 
     def name(self) -> str:
@@ -205,6 +205,16 @@ class ApiExporterBazel(object):
             targets=contribution_targets,
             capture_output=False,  # log everything to terminal
         )
+        # Determine the output_user_root where the artifacts are created.
+        print("Running Bazel info in tree rooted at {self.inner_tree}")
+        proc = self._run_bazel_cmd(
+            subcmd="info",
+            targets=["output_path"],
+            capture_output=True,
+            run_bp2build=False,
+        )
+        output_path = proc.stdout.decode().rstrip()
+
         print("Running Bazel cquery on api_domain_contribution targets "
               f"in tree rooted at {self.inner_tree}")
         proc = self._run_bazel_cmd(
@@ -226,7 +236,7 @@ class ApiExporterBazel(object):
         return [
             ApiMetadataFile(inner_tree=self.inner_tree,
                             path=filepath,
-                            bazel_symlink_prefix=self._output_user_root())
+                            bazel_output_user_root=output_path)
             for filepath in filepaths
         ]
 
