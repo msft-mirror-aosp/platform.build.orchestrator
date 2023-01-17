@@ -81,6 +81,17 @@ class InnerBuildSoong(common.Commands):
                              f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
 
+        # Capture the environment variables from soong.
+        env_path = os.path.join(args.out_dir, 'soong',
+                                'soong.environment.used.build')
+        with open(env_path, "r", encoding='iso-8859-1') as f:
+            try:
+                env_json = json.load(f)
+            except json.decoder.JSONDecodeError as ex:
+                sys.stderr.write(f"failed to parse {env_path}: {ex.msg}\n")
+                raise ex
+        shutil.copyfile(env_path, os.path.join(args.out_dir, "inner_tree.env"))
+
         # Deliver the innertree's ninja file at `inner_tree.ninja`.
         product = os.environ.get("TARGET_PRODUCT", DEFAULT_TARGET_PRODUCT)
         src_path = os.path.join(args.out_dir, f"combined-{product}.ninja")
@@ -92,7 +103,7 @@ class InnerBuildSoong(common.Commands):
         with open(os.path.join(args.out_dir, "build_targets.json"),
                   "w",
                   encoding='iso-8859-1') as f:
-            f.write(json.dumps({"staging": []}, indent=2))
+            json.dump({"staging": []}, f, indent=2)
 
 
 class ApiMetadataFile(object):
