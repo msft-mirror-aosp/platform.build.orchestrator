@@ -36,6 +36,10 @@ DEVICE_CLANG_TRIPLES = {
     "x86_64": "x86_64-linux-android",
 }
 
+# API surfaces that should be imported into an inner tree.
+# TODO: Add `systemapi`
+_SUPPORTED_API_SURFACES_FOR_IMPORT = {"publicapi", "vendorapi"}
+
 class CcApiAssemblyContext(object):
     """Context object for managing global state of CC API Assembly."""
 
@@ -134,6 +138,12 @@ class CcApiAssemblyContext(object):
             bp_file.add_module(stub_variant)
             return stub_variant
 
+        if stub_library.api_surface == "publicapi":
+            stub_variant.add_property("variant", "ndk")
+            stub_variant.add_property("version", stub_library.api_surface_version)
+            bp_file.add_module(stub_variant)
+            return stub_variant
+
         # TODO : Handle other variants
         return None
 
@@ -149,7 +159,7 @@ class CcApiAssemblyContext(object):
         # Generate Android.bp file for the stub library.
 
         # TODO : Handle other API types
-        if stub_library.api_surface != "vendorapi":
+        if stub_library.api_surface not in _SUPPORTED_API_SURFACES_FOR_IMPORT:
             return
 
         # TODO : Keep only one cc_api_library per target module
