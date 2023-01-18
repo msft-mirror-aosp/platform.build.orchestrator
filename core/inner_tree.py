@@ -90,7 +90,6 @@ class InnerTreeKey(object):
 
 
 class InnerTree(object):
-
     def __init__(self, context, paths, product, variant):
         """Initialize with the inner tree root (relative to the workspace root)"""
         if not isinstance(paths, list):
@@ -108,6 +107,7 @@ class InnerTree(object):
         self.variant = variant
         self.domains = {}
         self.context = context
+        self.env_used = []
         self.nsjail = context.tools.nsjail
         self.out_root_origin = context.out.inner_tree_dir(self.root, product)
         self.out = OutDirLayout(self.root, self.out_root_origin)
@@ -135,6 +135,9 @@ class InnerTree(object):
         if self.product:
             config.add_envar(name="TARGET_PRODUCT", value=self.product)
         config.add_envar(name="TARGET_BUILD_VARIANT", value=self.variant)
+
+        # TODO: determine what other envirnoment variables need to be copied
+        # into the nsjail config.
 
         # If the first meld dir path starts with "=", overlay the entire tree
         # with that before melding other sub manifests.
@@ -166,7 +169,8 @@ class InnerTree(object):
         # The mount point is out/api_surfaces -> <inner_tree>/out/api_surfaces
         # soong_finder will be speciall-cased to look for Android.bp files in
         # this dir.
-        api_surfaces_inner_tree = os.path.join(inner_tree_out_path, "api_surfaces")
+        api_surfaces_inner_tree = os.path.join(inner_tree_out_path,
+                                               "api_surfaces")
         os.makedirs(api_surfaces, exist_ok=True)
         os.makedirs(api_surfaces_inner_tree, exist_ok=True)
         config.add_mountpt(src=api_surfaces,
@@ -228,6 +232,15 @@ class InnerTree(object):
         """The build_domains for this inner-tree."""
         return sorted(self.domains.keys())
 
+    def set_env_used(self):
+        """Record the environment used in the inner tree."""
+        with open(self.out.env_used_file(), "r", encoding="iso-8859-1") as f:
+            try:
+                self.env_used = json.load(f)
+            except json.decoder.JSONDecodeError as ex:
+                sys.stderr.write(f"failed to parse {env_path}: {ex.msg}\n")
+                raise ex
+
     def invoke(self, args):
         """Call the inner tree command for this inner tree. Exits on failure."""
         # TODO: Build time tracing
@@ -275,7 +288,6 @@ class InnerTree(object):
 
 
 class InnerTrees(object):
-
     def __init__(self, trees, domains):
         self.trees = trees
         self.domains = domains
@@ -385,6 +397,9 @@ class OutDirLayout(object):
 
     def build_targets_file(self, **kwargs):
         return self._generate_path("build_targets.json", **kwargs)
+
+    def env_used_file(self, **kwargs):
+        return self._generate_path("inner_tree.env", **kwargs)
 
     def main_ninja_file(self, **kwargs):
         return self._generate_path("inner_tree.ninja", **kwargs)
