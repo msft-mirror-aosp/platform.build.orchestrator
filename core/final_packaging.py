@@ -31,7 +31,8 @@ def final_packaging(context, inner_trees):
         # Add the api surfaces file
         ninja.add_subninja(
             ninja_syntax.Subninja(
-                context.out.api_ninja_file(base=context.out.Base.OUTER)))
+                context.out.api_ninja_file(base=context.out.Base.OUTER),
+                chDir=None))
 
         # For each inner tree
         for tree in inner_trees.keys():
@@ -79,8 +80,7 @@ def generate_cross_domain_build_rules(context, ninja, tree, build_targets):
     ninja.add_subninja(
         ninja_syntax.Subninja(
             tree.out.main_ninja_file(base=tree.out.Base.OUTER),
-            chdir=tree.root,
-            env_vars=tree.env_used))
+            chDir=tree.root))
 
     # Generate module rules and files
     for module in build_targets.get("modules", []):

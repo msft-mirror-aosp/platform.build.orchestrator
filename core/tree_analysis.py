@@ -33,6 +33,3 @@ def run_analysis(tree_key, inner_tree, cookie):
                 context.out.api_surfaces_dir(base=context.out.Base.ORIGIN)])
 
     inner_tree.invoke(cmd)
-
-    # Save the environment variables used for the inner-tree build.
-    inner_tree.set_env_used()
