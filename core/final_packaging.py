@@ -33,6 +33,10 @@ def final_packaging(context, inner_trees):
             ninja_syntax.Subninja(
                 context.out.api_ninja_file(base=context.out.Base.OUTER),
                 chDir=None))
+        # TODO: Fix duplicate pool issue by creating the pool
+        # only at the top-level file.
+        # Pick an arbitrary value for depth.
+        ninja.add_pool(ninja_syntax.Pool(name="highmem_pool", depth=20))
 
         # For each inner tree
         for tree in inner_trees.keys():
