@@ -37,6 +37,9 @@ _ENV_VARS = {
     "SKIP_VNDK_VARIANTS_CHECK": "true",
 }
 
+# Default TARGET_PRODUCT.  See bazel/rules/make_injection.bzl, and envsetup.sh.
+DEFAULT_TARGET_PRODUCT = "aosp_arm"
+
 
 class InnerBuildSoong(common.Commands):
     def __init__(self, env_vars=None):
@@ -78,26 +81,11 @@ class InnerBuildSoong(common.Commands):
                              f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
 
-        # TODO: temp fix for duplicate pool error.
-        # Soong uses a ninja pool called `highmem_pool` to have stricter control
-        # on the execution of certain build actions.
-        # When outer tree subninja's multiple inner_build ninja files, we get
-        # a "duplicate pool" error.
-        # Remove the pool from every inner ninja file, and create the pool in the
-        # outer ninja file instead
-        # Also, the orchestrator expects the file to exist at `inner_tree.ninja`
-        product = os.environ.get("TARGET_PRODUCT", "aosp_arm")  # default
+        # Deliver the innertree's ninja file at `inner_tree.ninja`.
+        product = os.environ.get("TARGET_PRODUCT", DEFAULT_TARGET_PRODUCT)
         src_path = os.path.join(args.out_dir, f"combined-{product}.ninja")
         dst_path = os.path.join(args.out_dir, f"inner_tree.ninja")
-        with open(src_path, "r", encoding='iso-8859-1') as src:
-            # the combined files is small enough, read everything into memory
-            lines = src.readlines()
-            lines_without_pool = [
-                line for line in lines
-                if "pool" not in line and "depth" not in line
-            ]
-            with open(dst_path, "w", encoding='iso-8859-1') as dst:
-                dst.writelines(lines_without_pool)
+        shutil.copyfile(src_path, dst_path)
 
         # TODO: Create an empty file for now. orchestrator will subninja the
         # primary ninja file only if build_targets.json is not empty.
