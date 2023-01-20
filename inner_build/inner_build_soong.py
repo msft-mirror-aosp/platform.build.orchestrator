@@ -104,7 +104,7 @@ class InnerBuildSoong(common.Commands):
         with open(os.path.join(args.out_dir, "build_targets.json"),
                   "w",
                   encoding='iso-8859-1') as f:
-            f.write(json.dumps({"staging": []}, indent=2))
+            json.dump({"staging": []}, f, indent=2)
 
 
 class ApiMetadataFile(object):
