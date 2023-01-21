@@ -28,7 +28,7 @@ def run_ninja(context, config, targets):
     # Construct the command
     cmd = [
         nsjail, "--config", nsjail_config_file, "--",
-        context.tools.ninja(), "-f",
+        context.tools.ninja(), "--experimentalEnvvar", "-f",
         context.out.outer_ninja_file()
     ] + targets
 
