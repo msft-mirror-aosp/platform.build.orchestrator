@@ -27,6 +27,7 @@ import ninja_tools
 ContributionData = collections.namedtuple("ContributionData",
                                           ("inner_tree", "json_data"))
 
+
 def assemble_apis(context, inner_trees):
     # Find all of the contributions from the inner tree
     contribution_files_dict = inner_trees.for_each_tree(
@@ -63,6 +64,22 @@ def assemble_apis(context, inner_trees):
             STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
                                                           build_file_generator,
                                                           stub_library)
+            # TODO (b/265962882): Export APIs of version < current.
+            # API files of older versions (29,30,...) are currently not
+            # available in out/api_surfaces.
+            # This cause isssues during CC API import, since Soong
+            # cannot resolve the dependency for rdeps that specify
+            # `sdk_version:<num>`.
+            # Create a short-term hack that unconditionally generates Soong
+            # modules for all NDK libraries, starting from version=1.
+            # This does not compromise on API correctness though, since the correct
+            # version number will be passed to the ndkstubgen invocation.
+            if stub_library.language == "cc_libraries" and stub_library.api_surface == "publicapi":
+                for additional_version in range(1,
+                                                34):  # Till 33, 34 is current
+                    stub_library.api_surface_version = str(additional_version)
+                    STUB_LANGUAGE_HANDLERS[stub_library.language](
+                        context, ninja, build_file_generator, stub_library)
 
         # TODO: Handle host_executables separately or as a StubLibrary language?
 
