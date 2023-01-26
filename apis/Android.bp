@@ -173,6 +173,7 @@ api_domain {
     name: "com.android.conscrypt.contribution",
     java_api_contributions: [
         "conscrypt.module.intra.core.api.stubs.source",
+	"conscrypt.module.platform.api.stubs.source",
         "conscrypt.module.public.api.stubs.source",
         "conscrypt.module.public.api.stubs.source.module_lib",
         "conscrypt.module.public.api.stubs.source.system",
@@ -199,6 +200,9 @@ api_domain {
         "i18n.module.public.api.stubs.source",
         "i18n.module.public.api.stubs.source.module_lib",
         "i18n.module.public.api.stubs.source.system",
+	// i18n exports two versions of CorePlatformApi (stable and legacy)
+	"legacy.i18n.module.platform.api.stubs.source",
+	"stable.i18n.module.platform.api.stubs.source",
     ],
 }
 
