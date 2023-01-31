@@ -43,7 +43,7 @@ api_domain {
         "libvulkan.ndk",
         "libz.ndk",
 
-        // systemapi and vendorapi libraries
+        // module-libapi (used by apexes) and vendorapi libraries
         "heapprofd_api_noop",
         "heapprofd_client_api",
         "libaaudio",
