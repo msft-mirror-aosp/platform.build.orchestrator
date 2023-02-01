@@ -16,22 +16,27 @@
 import subprocess
 import sys
 
-def run_ninja(context, targets):
-    """Run ninja.
-    """
+
+def run_ninja(context, config, targets):
+    """Run ninja."""
+
+    nsjail = context.tools.nsjail
+    # Write the nsjail config
+    nsjail_config_file = context.out.nsjail_config_file()
+    config.generate_config(nsjail_config_file)
 
     # Construct the command
     cmd = [
-            context.tools.ninja(),
-            "-f",
-            context.out.outer_ninja_file(),
-        ] + targets
+        nsjail, "--config", nsjail_config_file, "--",
+        context.tools.ninja(), "--experimentalEnvvar", "-f",
+        context.out.outer_ninja_file()
+    ] + targets
 
     # Run the command
-    process = subprocess.run(cmd, shell=False)
+    process = subprocess.run(cmd, shell=False, check=False)
 
     # TODO: Probably want better handling of inner tree failures
     if process.returncode:
-        sys.stderr.write("Build error in outer tree.\nstopping multitree build.\n")
+        sys.stderr.write(
+            "Build error in outer tree.\nstopping multitree build.\n")
         sys.exit(1)
-
