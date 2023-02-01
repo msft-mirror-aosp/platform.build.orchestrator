@@ -37,7 +37,7 @@ DEVICE_CLANG_TRIPLES = {
 }
 
 # API surfaces that should be imported into an inner tree.
-# TODO: Add `systemapi`
+# TODO: Add `module-libapi`
 _SUPPORTED_API_SURFACES_FOR_IMPORT = {"publicapi", "vendorapi"}
 
 class CcApiAssemblyContext(object):
@@ -362,8 +362,8 @@ class CcApiAssemblyContext(object):
     def _additional_ndkstubgen_args(self, api_surface: str) -> str:
         if api_surface == "vendorapi":
             return "--llndk"
-        if api_surface == "systemapi":
-            # The "systemapi" surface has contributions from the following:
+        if api_surface == "module-libapi":
+            # The "module-libapi" surface has contributions from the following:
             # 1. Apex, which are annotated as #apex in map.txt
             # 2. Platform, which are annotated as #sytemapi in map.txt
             #
