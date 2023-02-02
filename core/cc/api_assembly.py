@@ -40,6 +40,7 @@ DEVICE_CLANG_TRIPLES = {
 # TODO: Add `module-libapi`
 _SUPPORTED_API_SURFACES_FOR_IMPORT = {"publicapi", "vendorapi"}
 
+
 class CcApiAssemblyContext(object):
     """Context object for managing global state of CC API Assembly."""
 
@@ -49,7 +50,12 @@ class CcApiAssemblyContext(object):
         self._linker = Linker()
         self._api_levels_file_added = False
         self._api_imports_module_added = False
-        self._api_library_src_added = set()
+        self._api_library_src_added = {
+            "arm": set(),
+            "arm64": set(),
+            "x86": set(),
+            "x86_64": set(),
+        }
         self._api_stub_library_bp_file = None
 
     def get_cc_api_assembler(self):
@@ -126,8 +132,7 @@ class CcApiAssemblyContext(object):
         build_file_generator.add_android_bp_file(bp_file)
 
         # Add module to global api_imports module
-        api_imports_module = self._api_imports_module(context,
-                                                      bp_file)
+        api_imports_module = self._api_imports_module(context, bp_file)
         # TODO: Add header_libs explicitly if necessary.
         api_imports_module.extend_property("shared_libs", [library_name])
         return stub_module
@@ -211,8 +216,24 @@ class CcApiAssemblyContext(object):
                 # not cc_api_library
                 export_include_dir_relative_to_cc_api_library = os.path.join(
                     stub_library.api_surface, stub_library.api_surface_version,
-                    export_include_dir)
+                    stub_library.name, export_include_dir)
                 stub_variant.extend_property(
+                    prop="export_include_dirs",
+                    val=[export_include_dir_relative_to_cc_api_library],
+                    axis=ConfigAxis.get_axis(headers["arch"]))
+                # TODO: Remove this and deprecate `src` and
+                # `export_include_dirs` on cc_api_library.
+                # module-libapi is not available for import, but cc_api_library
+                # incorrectly tries to provide stub libraries to apex variants.
+                # As a result, apex variants currently get an empty include path
+                # and fail (when it should use the include dir _inside_ that
+                # inner tree).
+                # The hack is to provide the headers of either publicapi or
+                # vendorapi..
+                # The headers of these two API surfaces and module-lib api do not overlap
+                # completely. So this is not guaranteed to work for all
+                # products.
+                stub_module.extend_property(
                     prop="export_include_dirs",
                     val=[export_include_dir_relative_to_cc_api_library],
                     axis=ConfigAxis.get_axis(headers["arch"]))
@@ -307,11 +328,13 @@ class CcApiAssemblyContext(object):
                 # vendor/out/api_surfaces/stub.so ->
                 # out/api_surfaces/stub.so
                 #
-                src_path_in_vendor_inner_tree = output_so.replace(
-                    context.out.api_surfaces_dir(),
-                    os.path.join("vendor", context.out.root(), "api_surfaces"))
-                ninja.add_global_phony(src_path_in_vendor_inner_tree,
-                                       [output_so])
+                for tree in ["system", "vendor", "apexes"]:
+                    src_path_in_inner_tree = output_so.replace(
+                        context.out.api_surfaces_dir(),
+                        os.path.join(tree, context.out.root(), "api_surfaces"))
+                    ninja.add_global_phony(src_path_in_inner_tree, [output_so])
+                    # Assemble the header files in out before compiling the rdeps
+                    ninja.add_global_phony(src_path_in_inner_tree, api_deps)
 
                 # TODO: Hack to make analysis of apex modules pass.
                 # Tracking bug: b/264963986
@@ -320,15 +343,25 @@ class CcApiAssemblyContext(object):
                 # This is necessary since SystemApi import for apexes is WIP,
                 # and the mainline module variants (incorrectly) try to link
                 # against the `src` of the top-level `cc_api_library`.
-                if stub_library.name not in self._api_library_src_added:
-                    ninja.add_global_phony(
-                        os.path.join("vendor", context.out.root(),
-                                     "api_surfaces", "cc", stub_library.name,
-                                     soname), [output_so])
-                    self._api_library_src_added.add(stub_library.name)
-
-                # Assemble the header files in out before compiling the rdeps
-                ninja.add_global_phony(src_path_in_vendor_inner_tree, api_deps)
+                # This property should be a no-op anyways, so hardcode it to
+                # arm64 for now.
+                if stub_library.name not in self._api_library_src_added[arch]:
+                    for tree in ["system", "vendor", "apexes"]:
+                        # Copy the file to the top-level cc_api_library in out.
+                        # e.g. src:
+                        # out/api_surfaces/publicapi/current/libc/arm/libc.so
+                        # e.g. dst: out/api_surfaces/arm/libc.so
+                        top_level_output_so = os.path.join(
+                            context.out.api_surfaces_dir(), arch, soname)
+                        ninja.add_copy_file(top_level_output_so, output_so)
+                        # Create a phony target of this to inner tree
+                        # e.g. src: out/api_surfaces/arm/libc.so
+                        # e.g. dst: vendor/out/api_surfaces/arm/libc.so
+                        ninja.add_global_phony(
+                            os.path.join(tree, top_level_output_so),
+                            [top_level_output_so])
+                        self._api_library_src_added[arch].add(
+                            stub_library.name)
 
                 # Add the prebuilt stub library as src to Android.bp
                 # The layout is
@@ -366,7 +399,8 @@ class CcApiAssemblyContext(object):
     # This should happen once across all `cc_api_variant` modules.
     @lru_cache(maxsize=None)
     def _add_src_to_stub_module(self, stub_module, soname, arch):
-        stub_module.add_property("src", soname, ConfigAxis.get_axis(arch))
+        stub_module.add_property("src", os.path.join(arch, soname),
+                                 ConfigAxis.get_axis(arch))
 
     def _additional_ndkstubgen_args(self, api_surface: str) -> str:
         if api_surface == "vendorapi":
