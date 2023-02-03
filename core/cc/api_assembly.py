@@ -48,6 +48,7 @@ class CcApiAssemblyContext(object):
         self._compiler = Compiler()
         self._linker = Linker()
         self._api_levels_file_added = False
+        self._api_imports_module_added = False
         self._api_library_src_added = set()
         self._api_stub_library_bp_file = None
 
@@ -60,16 +61,24 @@ class CcApiAssemblyContext(object):
 
     @lru_cache(maxsize=None)
     def _api_imports_module(self, context,
-                            build_file_generator) -> AndroidBpModule:
+                            bp_file: AndroidBpFile) -> AndroidBpModule:
         """The wrapper api_imports module for all the stub libraries.
-        This should be generated once."""
+        This should be generated once.
+
+        Args:
+            context: Context for global state
+            bp_file: top-level bp_file at out/api_surfaces
+        Returns:
+            api_imports AndroidBpModule object
+        """
         api_imports_module = AndroidBpModule(
             name="api_imports",
             module_type="api_imports",
         )
-        bp_file = AndroidBpFile(directory=context.out.api_surfaces_dir())
-        bp_file.add_module(api_imports_module)
-        build_file_generator.add_android_bp_file(bp_file)
+        if not self._api_imports_module_added:
+            bp_file.add_module(api_imports_module)
+            self._api_imports_module_added = True
+
         return api_imports_module
 
     # Returns a handle to the AndroidBpFile containing _all_ `cc_api_library`
@@ -118,7 +127,7 @@ class CcApiAssemblyContext(object):
 
         # Add module to global api_imports module
         api_imports_module = self._api_imports_module(context,
-                                                      build_file_generator)
+                                                      bp_file)
         # TODO: Add header_libs explicitly if necessary.
         api_imports_module.extend_property("shared_libs", [library_name])
         return stub_module
