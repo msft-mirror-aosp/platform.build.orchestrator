@@ -24,18 +24,35 @@ from typing import List, Tuple
 import common
 from find_api_packages import ApiPackageFinder
 
-# Additional env vars to pass to the SOONG UI invocation
+# Additional env vars to pass to the SOONG UI invocation.
 _ENV_VARS = {
-        # Orchestrator runs in a Read-only workspace, but inner_build does not
-        # (by default). Set this environment variable so that inner_build can
-        # setup its own nsjail.
-        "BUILD_BROKEN_SRC_DIR_IS_WRITABLE": "false",
+    # Orchestrator runs in a Read-only workspace, but inner_build does not
+    # (by default). Set this environment variable so that inner_build can
+    # setup its own nsjail.
+    "BUILD_BROKEN_SRC_DIR_IS_WRITABLE": "false",
+
+    # TODO: Once we are publishing a lightweight API surfaces tree, we
+    # should not need to set the environment variables.
+    "ALLOW_MISSING_DEPENDENCIES": "true",
+    "SKIP_VNDK_VARIANTS_CHECK": "true",
 }
 
+# Default TARGET_PRODUCT.  See bazel/rules/make_injection.bzl, and envsetup.sh.
+DEFAULT_TARGET_PRODUCT = "aosp_arm"
+
+
 class InnerBuildSoong(common.Commands):
+    def __init__(self, env_vars=None):
+        """Initialize the instance.
+
+        Args:
+          env_vars: Environment variable updates.  See common.setenv()
+        """
+        self.env_vars = dict(**_ENV_VARS)
+        self.env_vars.update(env_vars or {})
 
     def export_api_contributions(self, args):
-        with common.setenv(**_ENV_VARS):
+        with common.setenv(**self.env_vars):
             self._export_api_contributions(args)
 
     def _export_api_contributions(self, args):
@@ -47,14 +64,15 @@ class InnerBuildSoong(common.Commands):
         exporter.export_api_contributions()
 
     def analyze(self, args):
-        with common.setenv(**_ENV_VARS):
+        with common.setenv(**self.env_vars):
             self._analyze(args)
 
     def _analyze(self, args):
         """Run analysis on this tree."""
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
-            f"--dir={args.inner_tree}", "-all-modules", "nothing", "--search-api-dir"
+            f"--dir={args.inner_tree}", "-all-modules", "nothing",
+            "--search-api-dir"
         ]
 
         p = subprocess.run(cmd, shell=False, check=False)
@@ -63,54 +81,50 @@ class InnerBuildSoong(common.Commands):
                              f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
 
-        # TODO: temp fix for duplicate pool error.
-        # Soong uses a ninja pool called `highmem_pool` to have stricter control
-        # on the execution of certain build actions.
-        # When outer tree subninja's multiple inner_build ninja files, we get
-        # a "duplicate pool" error.
-        # Remove the pool from every inner ninja file, and create the pool in the
-        # outer ninja file instead
-        # Also, the orchestrator expects the file to exist at `inner_tree.ninja`
-        product = os.environ.get("TARGET_PRODUCT", "aosp_arm")  # default
+        # Capture the environment variables from soong.
+        env_path = os.path.join(args.out_dir, 'soong',
+                                'soong.environment.used.build')
+        with open(env_path, "r", encoding='iso-8859-1') as f:
+            try:
+                env_json = json.load(f)
+            except json.decoder.JSONDecodeError as ex:
+                sys.stderr.write(f"failed to parse {env_path}: {ex.msg}\n")
+                raise ex
+        shutil.copyfile(env_path, os.path.join(args.out_dir, "inner_tree.env"))
+
+        # Deliver the innertree's ninja file at `inner_tree.ninja`.
+        product = os.environ.get("TARGET_PRODUCT", DEFAULT_TARGET_PRODUCT)
         src_path = os.path.join(args.out_dir, f"combined-{product}.ninja")
         dst_path = os.path.join(args.out_dir, f"inner_tree.ninja")
-        with open(src_path, "r", encoding='iso-8859-1') as src:
-            # the combined files is small enough, read everything into memory
-            lines = src.readlines()
-            lines_without_pool = [
-                line for line in lines
-                if "pool" not in line and "depth" not in line
-            ]
-            with open(dst_path, "w", encoding='iso-8859-1') as dst:
-                dst.writelines(lines_without_pool)
+        shutil.copyfile(src_path, dst_path)
 
         # TODO: Create an empty file for now. orchestrator will subninja the
         # primary ninja file only if build_targets.json is not empty.
         with open(os.path.join(args.out_dir, "build_targets.json"),
                   "w",
                   encoding='iso-8859-1') as f:
-            f.write(json.dumps({"staging": []}, indent=2))
+            json.dump({"staging": []}, f, indent=2)
 
 
 class ApiMetadataFile(object):
     """Utility class that wraps the generated API surface metadata files"""
 
-    def __init__(self, inner_tree: str, path: str, bazel_symlink_prefix: str):
+    def __init__(self, inner_tree: str, path: str, bazel_output_user_root: str):
         self.inner_tree = inner_tree
         self.path = path
-        self.bazel_symlink_prefix = bazel_symlink_prefix
+        self.bazel_output_user_root = bazel_output_user_root
 
     def fullpath(self) -> str:
-        # To prevent writes to the source tree, the Bazel server is launched
-        # with --symlink_prefix.
-        # Inject the symlink prefix into the cquery result so that Build
+        # The Bazel convenience symlinks do not exist inside the nsjail
+        # workspace, since the workspace is read-only.
+        # Inject the output_user_root prefix into cquery result so that Build
         # orchestrator can find the metadata files.
         #
         # e.g. cquery returns bazel-out/android_target-fastbuild/bin/... which
         # does not exist.
-        # replace with <symlink_prefix>/bin/... which does exist.
-        cleaned_path = self.path.replace("bazel-out/android_target-fastbuild/",
-                                         self.bazel_symlink_prefix)
+        # replace with <output_user_root>/... which does exist.
+        cleaned_path = self.path.replace("bazel-out",
+                                         self.bazel_output_user_root)
         return os.path.join(self.inner_tree, cleaned_path)
 
     def name(self) -> str:
@@ -173,8 +187,9 @@ class ApiExporterBazel(object):
             contribution_targets.extend(labels)
         return contribution_targets
 
-    def _build_api_domain_contribution_targets(
-            self, contribution_targets: List[str]) -> List[ApiMetadataFile]:
+    def _build_api_domain_contribution_targets(self,
+                                               contribution_targets: List[str]
+                                               ) -> List[ApiMetadataFile]:
         """Build the contribution targets
 
         Return:
@@ -189,6 +204,16 @@ class ApiExporterBazel(object):
             targets=contribution_targets,
             capture_output=False,  # log everything to terminal
         )
+        # Determine the output_user_root where the artifacts are created.
+        print("Running Bazel info in tree rooted at {self.inner_tree}")
+        proc = self._run_bazel_cmd(
+            subcmd="info",
+            targets=["output_path"],
+            capture_output=True,
+            run_bp2build=False,
+        )
+        output_path = proc.stdout.decode().rstrip()
+
         print("Running Bazel cquery on api_domain_contribution targets "
               f"in tree rooted at {self.inner_tree}")
         proc = self._run_bazel_cmd(
@@ -203,14 +228,14 @@ class ApiExporterBazel(object):
             # we just ran bp2build. We can run it in again,
             # but this adds time.
             run_bp2build=False,
-           )
+        )
         # The cquery response contains a blank line at the end.
         # Remove this before creating the filepaths array.
         filepaths = proc.stdout.decode().rstrip().split("\n")
         return [
             ApiMetadataFile(inner_tree=self.inner_tree,
                             path=filepath,
-                            bazel_symlink_prefix=self._output_user_root())
+                            bazel_output_user_root=output_path)
             for filepath in filepaths
         ]
 
@@ -279,7 +304,7 @@ class ApiExporterBazel(object):
             f"--dir={self.inner_tree}",
             "api_bp2build",
             "--skip-soong-tests",
-            "--search-api-dir", # This ensures that Android.bp.list remains the same in the analysis step.
+            "--search-api-dir",  # This ensures that Android.bp.list remains the same in the analysis step.
         ]
         return self._run_cmd(cmd, **kwargs)
 

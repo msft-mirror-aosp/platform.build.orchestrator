@@ -21,6 +21,8 @@ import platform
 _API_SURFACES = "api_surfaces"
 _INTERMEDIATES = "intermediates"
 
+# Phony target to assemble al the api files in out/api_surfaces
+ASSEMBLE_PHONY_TARGET = "multitree-sdk"
 
 class Context(object):
     """Mockable container for global state."""
@@ -198,7 +200,7 @@ class Errors(object):
 # This clang_version was picked from Soong (build/soong/cc/config/global.go).
 # However, C stubs are ABI-stable and should not be affected by divergence in toolchain
 # versions of orchestrator and inner_build.
-CLANG_VERSION = "clang-r468909"
+CLANG_VERSION = "clang-r475365b"
 
 class HostTools(object):
     def __init__(self):

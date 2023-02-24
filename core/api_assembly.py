@@ -20,6 +20,7 @@ import os
 import sys
 
 from cc.api_assembly import CcApiAssemblyContext
+from java.api_assembly import JavaApiAssemblyContext
 from build_file_generator import BuildFileGenerator
 import ninja_tools
 
@@ -63,6 +64,22 @@ def assemble_apis(context, inner_trees):
             STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
                                                           build_file_generator,
                                                           stub_library)
+            # TODO (b/265962882): Export APIs of version < current.
+            # API files of older versions (29,30,...) are currently not
+            # available in out/api_surfaces.
+            # This cause isssues during CC API import, since Soong
+            # cannot resolve the dependency for rdeps that specify
+            # `sdk_version:<num>`.
+            # Create a short-term hack that unconditionally generates Soong
+            # modules for all NDK libraries, starting from version=1.
+            # This does not compromise on API correctness though, since the correct
+            # version number will be passed to the ndkstubgen invocation.
+            if stub_library.language == "cc_libraries" and stub_library.api_surface == "publicapi":
+                for additional_version in range(1,
+                                                34):  # Till 33, 34 is current
+                    stub_library.api_surface_version = str(additional_version)
+                    STUB_LANGUAGE_HANDLERS[stub_library.language](
+                        context, ninja, build_file_generator, stub_library)
 
         # TODO: Handle host_executables separately or as a StubLibrary language?
 
@@ -142,16 +159,6 @@ def collate_contributions(contributions):
     return list(grouped.values())
 
 
-def assemble_java_api_library(context, ninja, build_file, stub_library):
-    print("assembling java_api_library %s-%s %s from:" %
-          (stub_library.api_surface, stub_library.api_surface_version,
-           stub_library.name))
-    for contrib in stub_library.contributions:
-        print("  %s %s" %
-              (contrib.api_domain, contrib.library_contribution["api"]))
-    # TODO: Implement me
-
-
 def assemble_resource_api_library(context, ninja, build_file, stub_library):
     print("assembling resource_api_library %s-%s %s from:" %
           (stub_library.api_surface, stub_library.api_surface_version,
@@ -164,6 +171,6 @@ def assemble_resource_api_library(context, ninja, build_file, stub_library):
 
 STUB_LANGUAGE_HANDLERS = {
     "cc_libraries": CcApiAssemblyContext().get_cc_api_assembler(),
-    "java_libraries": assemble_java_api_library,
+    "java_libraries": JavaApiAssemblyContext().get_java_api_assembler(),
     "resource_libraries": assemble_resource_api_library,
 }

@@ -189,7 +189,8 @@ class Orchestrator():
 
         # 4. Build Execution
         # TODO: determine the targets from the lunch command and mcombo files.
-        targets = self.opts.targets or ["staging", "system/system"]
+        # For now, use a default that is consistent with having the build work.
+        targets = self.opts.targets or ["vendor/nothing"]
         print("Running ninja...")
 
         # TODO: Handle environment variables of each inner build in combined
@@ -203,6 +204,7 @@ class Orchestrator():
         # different JDK toolchains.)
         # For now, set `OUT_DIR` which is inner tree agnostic.
         jail_cfg.add_envar(name="OUT_DIR", value=utils.choose_out_dir())
+        jail_cfg.add_envar(name="TARGET_BUILD_VARIANT", value=self.variant)
         # Disable network access in the combined ninja execution
         jail_cfg.add_option(name="clone_newnet", value="true")
         ninja_runner.run_ninja(context, jail_cfg, targets)
