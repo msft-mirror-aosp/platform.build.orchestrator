@@ -81,9 +81,10 @@ class InnerBuildSoong(common.Commands):
                              f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
 
-        # Capture the environment variables from soong.
+        # Capture the environment variables passed by soong_ui to single-tree
+        # ninja.
         env_path = os.path.join(args.out_dir, 'soong',
-                                'soong.environment.used.build')
+                                'ninja.environment')
         with open(env_path, "r", encoding='iso-8859-1') as f:
             try:
                 env_json = json.load(f)
