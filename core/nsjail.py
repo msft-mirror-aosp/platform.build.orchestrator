@@ -48,7 +48,6 @@ class Envar():
 
 
 class MountPt(object):
-
     def __init__(self,
                  _kw_only=(),
                  src="",
@@ -168,7 +167,6 @@ class NsjailConfigOption(object):
 
 
 class Nsjail(object):
-
     def __init__(self, cwd, verbose=False):
         self.cwd = cwd
         self.verbose = verbose
@@ -203,14 +201,22 @@ class Nsjail(object):
             # tmpfs to limit access to the external environment.
             MountPt(dst="/dev/shm", fstype="tmpfs", rw=True, is_bind=False),
 
+            # Add the expected tty devices.
+            MountPt(src="/dev/tty", dst="/dev/tty", rw=True, is_bind=True),
+            # These are symlinks to /proc/self/fd/{0,1,2}.
+            MountPt(src="/proc/self/fd/0", dst="/dev/stdin", is_symlink=True),
+            MountPt(src="/proc/self/fd/1", dst="/dev/stdout", is_symlink=True),
+            MountPt(src="/proc/self/fd/2", dst="/dev/stderr", is_symlink=True),
+
             # Map the working User ID to a username
             # Some tools like Java need a valid username
             # Inner trees building with Soong also expect the nobody UID to be
             # available to setup its own nsjail.
-            MountPt(src_content="user:x:999999:65533:user:/tmp:/bin/bash\n"
-                    "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n",
-                    dst="/etc/passwd",
-                    mandatory=False),
+            MountPt(
+                src_content="user:x:999999:65533:user:/tmp:/bin/bash\n"
+                "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n",
+                dst="/etc/passwd",
+                mandatory=False),
 
             # Define default group
             MountPt(src_content="group::65533:user\n"
