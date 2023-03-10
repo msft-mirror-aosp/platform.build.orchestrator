@@ -71,7 +71,9 @@ class InnerBuildSoong(common.Commands):
         """Run analysis on this tree."""
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
-            f"--dir={args.inner_tree}", "-all-modules", "nothing",
+            f"--dir={args.inner_tree}", "-all-modules",
+            "--skip-soong-tests",
+            "nothing",
             "--search-api-dir"
         ]
 
