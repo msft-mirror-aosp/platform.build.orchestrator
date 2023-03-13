@@ -317,6 +317,7 @@ class CcApiAssemblyContext(object):
                     out=output_so,
                     frontend=context.tools.clang_cxx(),
                 )
+                link_context.add_implicits(api_deps)
                 self._linker.link(ninja, link_context)
 
                 # TODO: Short term hack to make the stub library available to
