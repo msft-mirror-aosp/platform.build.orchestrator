@@ -24,9 +24,7 @@ api_domain {
         "libamidi.ndk",
         "libandroid.ndk",
         "libbinder_ndk.ndk",
-        "libc.ndk",
         "libcamera2ndk.ndk",
-        "libdl.ndk",
         "libEGL.ndk",
         "libGLESv1_CM.ndk",
         "libGLESv2.ndk",
@@ -34,7 +32,6 @@ api_domain {
         "libicu.ndk",
         "libjnigraphics.ndk",
         "liblog.ndk",
-        "libm.ndk",
         "libnativewindow.ndk",
         "libOpenMAXAL.ndk",
         "libOpenSLES.ndk",
@@ -54,10 +51,7 @@ api_domain {
         "libartpalette-system",
         "libbinder_ndk",
         "libbinder_rpc_unstable",
-        "libc",
         "libcgrouprc",
-        "libdl",
-        "libdl_android",
         "libft2",
         "libEGL",
         "libGLESv1_CM",
@@ -65,7 +59,6 @@ api_domain {
         "libGLESv3",
         "libincident",
         "liblog",
-        "libm",
         "libmediametrics",
         "libmediandk",
         "libnativewindow",
@@ -173,7 +166,7 @@ api_domain {
     name: "com.android.conscrypt.contribution",
     java_api_contributions: [
         "conscrypt.module.intra.core.api.stubs.source",
-	"conscrypt.module.platform.api.stubs.source",
+        "conscrypt.module.platform.api.stubs.source",
         "conscrypt.module.public.api.stubs.source",
         "conscrypt.module.public.api.stubs.source.module_lib",
         "conscrypt.module.public.api.stubs.source.system",
@@ -200,9 +193,9 @@ api_domain {
         "i18n.module.public.api.stubs.source",
         "i18n.module.public.api.stubs.source.module_lib",
         "i18n.module.public.api.stubs.source.system",
-	// i18n exports two versions of CorePlatformApi (stable and legacy)
-	"legacy.i18n.module.platform.api.stubs.source",
-	"stable.i18n.module.platform.api.stubs.source",
+        // i18n exports two versions of CorePlatformApi (stable and legacy)
+        "legacy.i18n.module.platform.api.stubs.source",
+        "stable.i18n.module.platform.api.stubs.source",
     ],
 }
 
@@ -285,6 +278,19 @@ api_domain {
     name: "com.android.resolv.contribution",
     cc_api_contributions: [
         "libnetd_resolv",
+    ],
+}
+
+api_domain {
+    name: "com.android.runtime.contribution",
+    cc_api_contributions: [
+        "libc.ndk",
+        "libdl.ndk",
+        "libm.ndk",
+        "libc",
+        "libdl",
+        "libdl_android",
+        "libm",
     ],
 }
 
