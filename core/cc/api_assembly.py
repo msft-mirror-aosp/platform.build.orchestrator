@@ -38,7 +38,9 @@ DEVICE_CLANG_TRIPLES = {
 
 # API surfaces that should be imported into an inner tree.
 # TODO: Add `module-libapi`
-_SUPPORTED_API_SURFACES_FOR_IMPORT = {"publicapi", "vendorapi"}
+_SUPPORTED_API_SURFACES_FOR_IMPORT = {
+    "publicapi", "vendorapi", "module-libapi"
+}
 
 
 class CcApiAssemblyContext(object):
@@ -50,12 +52,6 @@ class CcApiAssemblyContext(object):
         self._linker = Linker()
         self._api_levels_file_added = False
         self._api_imports_module_added = False
-        self._api_library_src_added = {
-            "arm": set(),
-            "arm64": set(),
-            "x86": set(),
-            "x86_64": set(),
-        }
         self._api_stub_library_bp_file = None
 
     def get_cc_api_assembler(self):
@@ -135,6 +131,7 @@ class CcApiAssemblyContext(object):
         api_imports_module = self._api_imports_module(context, bp_file)
         # TODO: Add header_libs explicitly if necessary.
         api_imports_module.extend_property("shared_libs", [library_name])
+        api_imports_module.extend_property("apex_shared_libs", [library_name])
         return stub_module
 
     def _api_stub_variant_module(
@@ -170,11 +167,23 @@ class CcApiAssemblyContext(object):
             stub_variant.add_property("variant", "ndk")
             stub_variant.add_property("version",
                                       stub_library.api_surface_version)
+            stub_module.extend_property(
+                "variants", [f"ndk.{stub_library.api_surface_version}"])
             bp_file.add_module(stub_variant)
             return stub_variant
 
-        # TODO : Handle other variants
-        return None
+        if stub_library.api_surface == "module-libapi":
+            stub_variant.add_property("variant", "apex")
+            stub_variant.add_property("version",
+                                      stub_library.api_surface_version)
+            stub_module.extend_property(
+                "variants", [f"apex.{stub_library.api_surface_version}"])
+            bp_file.add_module(stub_variant)
+            return stub_variant
+
+        raise Exception(
+            f"API surface {stub_library.api_surface} of library {stub_library.name} is not a recognized API surface."
+        )
 
     def assemble_cc_api_library(self, context, ninja, build_file_generator,
                                 stub_library):
@@ -336,33 +345,6 @@ class CcApiAssemblyContext(object):
                     ninja.add_global_phony(src_path_in_inner_tree, [output_so])
                     # Assemble the header files in out before compiling the rdeps
                     ninja.add_global_phony(src_path_in_inner_tree, api_deps)
-
-                # TODO: Hack to make analysis of apex modules pass.
-                # Tracking bug: b/264963986
-                # Creates an so file as `src` for the top-level
-                # `cc_api_library`.
-                # This is necessary since SystemApi import for apexes is WIP,
-                # and the mainline module variants (incorrectly) try to link
-                # against the `src` of the top-level `cc_api_library`.
-                # This property should be a no-op anyways, so hardcode it to
-                # arm64 for now.
-                if stub_library.name not in self._api_library_src_added[arch]:
-                    for tree in ["system", "vendor", "apexes"]:
-                        # Copy the file to the top-level cc_api_library in out.
-                        # e.g. src:
-                        # out/api_surfaces/publicapi/current/libc/arm/libc.so
-                        # e.g. dst: out/api_surfaces/arm/libc.so
-                        top_level_output_so = os.path.join(
-                            context.out.api_surfaces_dir(), arch, soname)
-                        ninja.add_copy_file(top_level_output_so, output_so)
-                        # Create a phony target of this to inner tree
-                        # e.g. src: out/api_surfaces/arm/libc.so
-                        # e.g. dst: vendor/out/api_surfaces/arm/libc.so
-                        ninja.add_global_phony(
-                            os.path.join(tree, top_level_output_so),
-                            [top_level_output_so])
-                        self._api_library_src_added[arch].add(
-                            stub_library.name)
 
                 # Add the prebuilt stub library as src to Android.bp
                 # The layout is
