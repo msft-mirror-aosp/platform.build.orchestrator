@@ -61,9 +61,6 @@ def assemble_apis(context, inner_trees):
         # and Android.bp/BUILD files to make those available to inner trees.
         # TODO: Parallelize? Skip unnecessary work?
         for stub_library in stub_libraries:
-            STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
-                                                          build_file_generator,
-                                                          stub_library)
             # TODO (b/265962882): Export APIs of version < current.
             # API files of older versions (29,30,...) are currently not
             # available in out/api_surfaces.
@@ -74,12 +71,19 @@ def assemble_apis(context, inner_trees):
             # modules for all NDK libraries, starting from version=1.
             # This does not compromise on API correctness though, since the correct
             # version number will be passed to the ndkstubgen invocation.
-            if stub_library.language == "cc_libraries" and stub_library.api_surface == "publicapi":
-                for additional_version in range(1,
-                                                34):  # Till 33, 34 is current
-                    stub_library.api_surface_version = str(additional_version)
+            # TODO(b/266830850): Revisit stubs versioning for Module-lib API
+            # surface.
+            if stub_library.language == "cc_libraries" and stub_library.api_surface in ["publicapi", "module-libapi"]:
+                versions = list(range(1,34)) # 34 is current
+                versions.append("current")
+                for version in versions:
+                    stub_library.api_surface_version = str(version)
                     STUB_LANGUAGE_HANDLERS[stub_library.language](
                         context, ninja, build_file_generator, stub_library)
+            else:
+                STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
+                                                          build_file_generator,
+                                                          stub_library)
 
         # TODO: Handle host_executables separately or as a StubLibrary language?
 
