@@ -223,14 +223,20 @@ class Pool(Node):
 
 
 class Subninja(Node):
-    def __init__(self, subninja: str, chDir: str):
+    def __init__(self,
+                 subninja: str,
+                 chdir: str = "",
+                 env_vars: list[dict] = ()):
         self.subninja = subninja
-        self.chDir = chDir
+        self.chdir = chdir
+        self.env_vars = env_vars
 
     def stream(self) -> Iterator[str]:
         token = f"subninja {self.subninja}"
-        if self.chDir:
-            token += f"\n  chdir = {self.chDir}"
+        for env_var in self.env_vars:
+            token += f"\n  env {env_var['Key']}={env_var['Value']}"
+        if self.chdir:
+            token += f"\n  chdir = {self.chdir}"
         yield token
 
 

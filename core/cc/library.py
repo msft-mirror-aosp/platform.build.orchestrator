@@ -59,6 +59,10 @@ class LinkContext():
         self.flags = flags
         self.out = out
         self.frontend = frontend
+        self.implicits = [frontend]
+
+    def add_implicits(self, implicits: List[str]):
+        self.implicits.extend(implicits)
 
 class Linker():
 
@@ -76,7 +80,7 @@ class Linker():
         link_action = BuildAction(output=link_context.out,
                 inputs=link_context.objs,
                 rule=link_rule.name,
-                implicits=[link_context.frontend]
+                implicits=link_context.implicits,
                 )
         link_action.add_variable("ldFrontend", link_context.frontend)
         link_action.add_variable("ldFlags", link_context.flags)

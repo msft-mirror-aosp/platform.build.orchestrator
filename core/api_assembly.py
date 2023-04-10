@@ -27,6 +27,7 @@ import ninja_tools
 ContributionData = collections.namedtuple("ContributionData",
                                           ("inner_tree", "json_data"))
 
+
 def assemble_apis(context, inner_trees):
     # Find all of the contributions from the inner tree
     contribution_files_dict = inner_trees.for_each_tree(
@@ -60,7 +61,27 @@ def assemble_apis(context, inner_trees):
         # and Android.bp/BUILD files to make those available to inner trees.
         # TODO: Parallelize? Skip unnecessary work?
         for stub_library in stub_libraries:
-            STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
+            # TODO (b/265962882): Export APIs of version < current.
+            # API files of older versions (29,30,...) are currently not
+            # available in out/api_surfaces.
+            # This cause isssues during CC API import, since Soong
+            # cannot resolve the dependency for rdeps that specify
+            # `sdk_version:<num>`.
+            # Create a short-term hack that unconditionally generates Soong
+            # modules for all NDK libraries, starting from version=1.
+            # This does not compromise on API correctness though, since the correct
+            # version number will be passed to the ndkstubgen invocation.
+            # TODO(b/266830850): Revisit stubs versioning for Module-lib API
+            # surface.
+            if stub_library.language == "cc_libraries" and stub_library.api_surface in ["publicapi", "module-libapi"]:
+                versions = list(range(1,34)) # 34 is current
+                versions.append("current")
+                for version in versions:
+                    stub_library.api_surface_version = str(version)
+                    STUB_LANGUAGE_HANDLERS[stub_library.language](
+                        context, ninja, build_file_generator, stub_library)
+            else:
+                STUB_LANGUAGE_HANDLERS[stub_library.language](context, ninja,
                                                           build_file_generator,
                                                           stub_library)
 
