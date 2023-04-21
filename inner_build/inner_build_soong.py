@@ -72,7 +72,7 @@ class InnerBuildSoong(common.Commands):
         cmd = [
             "build/soong/soong_ui.bash", "--build-mode",
             f"--dir={args.inner_tree}", "-all-modules", "nothing",
-            "--search-api-dir"
+            "--skip-soong-tests", "--search-api-dir", "--multitree-build"
         ]
 
         p = subprocess.run(cmd, shell=False, check=False)
@@ -81,9 +81,9 @@ class InnerBuildSoong(common.Commands):
                              f"{p.stderr.decode() if p.stderr else ''}")
             sys.exit(p.returncode)
 
-        # Capture the environment variables from soong.
-        env_path = os.path.join(args.out_dir, 'soong',
-                                'soong.environment.used.build')
+        # Capture the environment variables passed by soong_ui to single-tree
+        # ninja.
+        env_path = os.path.join(args.out_dir, 'soong', 'ninja.environment')
         with open(env_path, "r", encoding='iso-8859-1') as f:
             try:
                 env_json = json.load(f)
@@ -109,7 +109,8 @@ class InnerBuildSoong(common.Commands):
 class ApiMetadataFile(object):
     """Utility class that wraps the generated API surface metadata files"""
 
-    def __init__(self, inner_tree: str, path: str, bazel_output_user_root: str):
+    def __init__(self, inner_tree: str, path: str,
+                 bazel_output_user_root: str):
         self.inner_tree = inner_tree
         self.path = path
         self.bazel_output_user_root = bazel_output_user_root
@@ -304,6 +305,7 @@ class ApiExporterBazel(object):
             f"--dir={self.inner_tree}",
             "api_bp2build",
             "--skip-soong-tests",
+            "--multitree-build",
             "--search-api-dir",  # This ensures that Android.bp.list remains the same in the analysis step.
         ]
         return self._run_cmd(cmd, **kwargs)
