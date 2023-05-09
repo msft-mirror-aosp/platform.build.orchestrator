@@ -1,0 +1,52 @@
+// Copyright 2023 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+//
+// Java API defaults and libraries for single tree build
+//
+
+java_defaults {
+    name: "stub-annotation-defaults",
+    libs: [
+        "stub-annotations",
+    ],
+    static_libs: [
+        // stub annotations do not contribute to the API surfaces but are statically
+        // linked in the stubs for API surfaces (see frameworks/base/StubLibraries.bp).
+        // This is because annotation processors insist on loading the classes for any
+        // annotations found, thus should exist inside android.jar.
+        "private-stub-annotations-jar",
+    ],
+}
+
+// Java API library definitions per API surface
+java_api_library {
+    name: "android_stubs_current.from-text",
+    api_surface: "public",
+    defaults: [
+        // This module is dynamically created at frameworks/base/api/api.go
+        // instead of being written out, in order to minimize edits in the codebase
+        // when there is a change in the list of modules.
+        // that contributes to an api surface.
+        "android_stubs_current_contributions",
+        "stub-annotation-defaults",
+    ],
+    api_contributions: [
+        "api-stubs-docs-non-updatable.api.contribution",
+    ],
+}
