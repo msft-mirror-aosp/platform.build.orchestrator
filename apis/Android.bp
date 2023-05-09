@@ -60,6 +60,18 @@ java_defaults {
     ],
 }
 
+java_defaults {
+    name: "android_core_platform_stubs_current_contributions",
+    api_surface: "core_platform",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+        "conscrypt.module.platform.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+}
+
 // Java API library definitions per API surface
 java_api_library {
     name: "android_stubs_current.from-text",
@@ -158,6 +170,34 @@ java_api_library {
         "art.module.public.api.stubs.source.api.contribution",
         "conscrypt.module.public.api.stubs.source.api.contribution",
         "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
+java_api_library {
+    name: "legacy.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "legacy.i18n.module.platform.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
+
+java_api_library {
+    name: "stable.core.platform.api.stubs.from-text",
+    api_surface: "core_platform",
+    defaults: [
+        "android_core_platform_stubs_current_contributions",
+    ],
+    api_contributions: [
+        "stable.i18n.module.platform.api.stubs.source.api.contribution",
     ],
     libs: [
         "stub-annotations",
