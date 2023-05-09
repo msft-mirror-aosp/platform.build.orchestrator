@@ -50,3 +50,17 @@ java_api_library {
         "api-stubs-docs-non-updatable.api.contribution",
     ],
 }
+
+java_api_library {
+    name: "android_system_stubs_current.from-text",
+    api_surface: "system",
+    defaults: [
+        "android_stubs_current_contributions",
+        "android_system_stubs_current_contributions",
+        "stub-annotation-defaults",
+    ],
+    api_contributions: [
+        "api-stubs-docs-non-updatable.api.contribution",
+        "system-api-stubs-docs-non-updatable.api.contribution",
+    ],
+}
