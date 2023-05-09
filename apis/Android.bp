@@ -135,3 +135,18 @@ java_api_library {
         "stub-annotations",
     ],
 }
+
+java_api_library {
+    name: "android_system_server_stubs_current.from-text",
+    api_surface: "system-server",
+    api_contributions: [
+        "services-non-updatable-stubs.api.contribution",
+    ],
+    libs: [
+        "android_module_lib_stubs_current.from-text",
+        "stub-annotations",
+    ],
+    static_libs: [
+        "android_module_lib_stubs_current.from-text",
+    ],
+}
