@@ -44,6 +44,22 @@ java_defaults {
     ],
 }
 
+java_defaults {
+    name: "android_module_lib_stubs_current_contributions",
+    api_surface: "module-lib",
+    api_contributions: [
+        "api-stubs-docs-non-updatable.api.contribution",
+        "system-api-stubs-docs-non-updatable.api.contribution",
+        "module-lib-api-stubs-docs-non-updatable.api.contribution",
+        "art.module.public.api.stubs.source.api.contribution",
+        "art.module.public.api.stubs.source.system.api.contribution",
+        "art.module.public.api.stubs.source.module_lib.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.system.api.contribution",
+        "i18n.module.public.api.stubs.source.module_lib.api.contribution",
+    ],
+}
+
 // Java API library definitions per API surface
 java_api_library {
     name: "android_stubs_current.from-text",
@@ -87,5 +103,35 @@ java_api_library {
     api_contributions: [
         "api-stubs-docs-non-updatable.api.contribution",
         "system-api-stubs-docs-non-updatable.api.contribution",
+    ],
+}
+
+java_api_library {
+    name: "android_module_lib_stubs_current_full.from-text",
+    api_surface: "module-lib",
+    defaults: [
+        "android_stubs_current_contributions",
+        "android_system_stubs_current_contributions",
+        "android_module_lib_stubs_current_contributions_full",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+    api_contributions: [
+        "api-stubs-docs-non-updatable.api.contribution",
+        "system-api-stubs-docs-non-updatable.api.contribution",
+        "module-lib-api-stubs-docs-non-updatable.api.contribution",
+    ],
+}
+
+java_api_library {
+    name: "android_module_lib_stubs_current.from-text",
+    api_surface: "module-lib",
+    defaults: [
+        "android_module_lib_stubs_current_contributions",
+    ],
+    libs: [
+        "android_module_lib_stubs_current_full.from-text",
+        "stub-annotations",
     ],
 }
