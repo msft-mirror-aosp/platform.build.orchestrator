@@ -150,3 +150,16 @@ java_api_library {
         "android_module_lib_stubs_current.from-text",
     ],
 }
+
+java_api_library {
+    name: "core.current.stubs.from-text",
+    api_surface: "core",
+    api_contributions: [
+        "art.module.public.api.stubs.source.api.contribution",
+        "conscrypt.module.public.api.stubs.source.api.contribution",
+        "i18n.module.public.api.stubs.source.api.contribution",
+    ],
+    libs: [
+        "stub-annotations",
+    ],
+}
